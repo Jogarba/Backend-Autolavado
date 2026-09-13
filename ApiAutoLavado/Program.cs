@@ -19,20 +19,28 @@ builder.Services.AddSingleton<IOperarioService, OperarioService>();
 builder.Services.AddSingleton<IServicioService, ServicioService>();
 builder.Services.AddSingleton<ITurnoService, TurnoService>();
 
-// Servicio nativo OpenAPI de .NET 9 (ya lo tenías)
+// Servicio OpenAPI nativo
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-    app.MapScalarApiReference(); // <-- Agrega esta línea aquí
-}
+// Habilitar OpenAPI y Scalar en todos los entornos (incluido Render)
+app.MapOpenApi();
+app.MapScalarApiReference();
 
-app.UseHttpsRedirection();
+// Endpoint de prueba en la raíz para comprobar que el servicio está vivo
+app.MapGet("/", () => Results.Ok(new
+{
+    status = "Online",
+    service = "API AutoLavado",
+    docs = "/scalar/v1"
+}));
+
+// Descomentar solo si manejas certificados SSL directamente en la app:
+// app.UseHttpsRedirection();
+
 app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();
