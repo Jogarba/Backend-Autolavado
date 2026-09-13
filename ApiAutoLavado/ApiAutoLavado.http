@@ -1,6 +1,44 @@
-@ApiAutoLavado_HostAddress = http://localhost:5136
+@ApiAutoLavado_HostAddress = https://localhost:7053
 
-GET {{ApiAutoLavado_HostAddress}}/weatherforecast/
+### Bahías disponibles
+GET {{ApiAutoLavado_HostAddress}}/api/v1/bahias/disponibles
 Accept: application/json
 
-###
+### Operarios activos
+GET {{ApiAutoLavado_HostAddress}}/api/v1/operarios/activos
+Accept: application/json
+
+### Catálogo de servicios
+GET {{ApiAutoLavado_HostAddress}}/api/v1/servicios
+Accept: application/json
+
+### Turnos activos
+GET {{ApiAutoLavado_HostAddress}}/api/v1/turnos/activos
+Accept: application/json
+
+### Registrar ingreso de vehículo
+# Los ids son GUID aleatorios generados en cada arranque:
+# cópialos desde las respuestas de los GET anteriores.
+POST {{ApiAutoLavado_HostAddress}}/api/v1/turnos
+Content-Type: application/json
+
+{
+  "placa": "QHT123",
+  "tipo_vehiculo": "AUTO",
+  "telefono_cliente": "3001234567",
+  "id_servicio": "PEGAR-GUID-DE-GET-servicios",
+  "id_operario": "PEGAR-GUID-DE-GET-operarios",
+  "id_bahia": "PEGAR-GUID-DE-GET-bahias"
+}
+
+### Crear operario
+POST {{ApiAutoLavado_HostAddress}}/api/v1/operarios
+Content-Type: application/json
+
+{
+  "nombres": "Pedro",
+  "apellidos": "López",
+  "documento": "2002002",
+  "telefono": "3012223344",
+  "activo": true
+}
