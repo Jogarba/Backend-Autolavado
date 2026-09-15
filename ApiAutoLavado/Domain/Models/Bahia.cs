@@ -4,12 +4,18 @@ namespace ApiAutoLavado.Domain.Models
 {
     public class Bahia
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
+        public int Id { get; set; }
 
         public required string NombreBahia { get; set; }
 
         public TipoBahia Tipo { get; set; }
 
         public EstadoBahia Estado { get; set; } = EstadoBahia.Disponible;
+
+        public bool EstaDisponible => Estado == EstadoBahia.Disponible;
+
+        public void Ocupar() => Estado = EstadoBahia.Ocupada;
+
+        public void Liberar() => Estado = EstadoBahia.Disponible;
     }
 }

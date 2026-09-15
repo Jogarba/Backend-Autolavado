@@ -1,8 +1,8 @@
 using ApiAutoLavado.Domain.Enums;
 
-namespace ApiAutoLavado.Domain.Models
+namespace ApiAutoLavado.Aplicacion.Dtos
 {
-    public class Turno
+    public class TurnoResponse
     {
         public long Id { get; set; }
 
@@ -20,7 +20,7 @@ namespace ApiAutoLavado.Domain.Models
 
         public int IdBahia { get; set; }
 
-        public EstadoTurno EstadoActual { get; set; } = EstadoTurno.Recepcion;
+        public EstadoTurno EstadoActual { get; set; }
 
         public DateTime FechaIngreso { get; set; }
 

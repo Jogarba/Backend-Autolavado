@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using ApiAutoLavado.Domain.Models;
-using ApiAutoLavado.LogicaNegocio.Services;
+using ApiAutoLavado.Aplicacion.Dtos;
+using ApiAutoLavado.Aplicacion.Services;
 
 namespace ApiAutoLavado.UI.Controllers
 {
@@ -16,7 +16,7 @@ namespace ApiAutoLavado.UI.Controllers
         }
 
         [HttpGet("disponibles")]
-        public ActionResult<IEnumerable<Bahia>> ObtenerDisponibles()
+        public ActionResult<IEnumerable<BahiaResponse>> ObtenerDisponibles()
         {
             return Ok(_bahiaService.ObtenerDisponibles());
         }

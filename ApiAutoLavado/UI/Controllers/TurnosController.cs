@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using ApiAutoLavado.Domain.Exceptions;
-using ApiAutoLavado.Domain.Models;
-using ApiAutoLavado.UI.Dtos;
-using ApiAutoLavado.LogicaNegocio.Services;
+using ApiAutoLavado.Aplicacion.Dtos;
+using ApiAutoLavado.Aplicacion.Services;
 
 namespace ApiAutoLavado.UI.Controllers
 {
@@ -18,7 +16,7 @@ namespace ApiAutoLavado.UI.Controllers
         }
 
         [HttpGet("activos")]
-        public ActionResult<IEnumerable<Turno>> ObtenerActivos()
+        public ActionResult<IEnumerable<TurnoResponse>> ObtenerActivos()
         {
             return Ok(_turnoService.ObtenerActivos());
         }
@@ -26,19 +24,8 @@ namespace ApiAutoLavado.UI.Controllers
         [HttpPost]
         public ActionResult<TurnoCreadoResponse> Crear([FromBody] CrearTurnoRequest request)
         {
-            try
-            {
-                var response = _turnoService.Crear(request);
-                return StatusCode(StatusCodes.Status201Created, response);
-            }
-            catch (NoEncontradoException ex)
-            {
-                return NotFound(new { mensaje = ex.Message });
-            }
-            catch (ReglaNegocioException ex)
-            {
-                return Conflict(new { mensaje = ex.Message });
-            }
+            var response = _turnoService.Crear(request);
+            return StatusCode(StatusCodes.Status201Created, response);
         }
     }
 }

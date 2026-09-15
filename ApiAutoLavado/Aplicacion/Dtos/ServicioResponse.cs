@@ -1,6 +1,6 @@
-namespace ApiAutoLavado.Domain.Models
+namespace ApiAutoLavado.Aplicacion.Dtos
 {
-    public class Servicio
+    public class ServicioResponse
     {
         public int Id { get; set; }
 

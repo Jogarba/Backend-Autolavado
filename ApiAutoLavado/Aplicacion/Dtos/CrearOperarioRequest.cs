@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace ApiAutoLavado.UI.Dtos
+namespace ApiAutoLavado.Aplicacion.Dtos
 {
     public class CrearOperarioRequest
     {

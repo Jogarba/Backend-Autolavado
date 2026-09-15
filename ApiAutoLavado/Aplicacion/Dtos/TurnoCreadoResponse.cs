@@ -1,10 +1,10 @@
 using ApiAutoLavado.Domain.Enums;
 
-namespace ApiAutoLavado.UI.Dtos
+namespace ApiAutoLavado.Aplicacion.Dtos
 {
     public class TurnoCreadoResponse
     {
-        public Guid IdTurno { get; set; }
+        public long IdTurno { get; set; }
 
         public required string NumeroTurno { get; set; }
 

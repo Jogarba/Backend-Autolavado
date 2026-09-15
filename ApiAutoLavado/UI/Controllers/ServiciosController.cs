@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using ApiAutoLavado.Domain.Models;
-using ApiAutoLavado.LogicaNegocio.Services;
+using ApiAutoLavado.Aplicacion.Dtos;
+using ApiAutoLavado.Aplicacion.Services;
 
 namespace ApiAutoLavado.UI.Controllers
 {
@@ -16,7 +16,7 @@ namespace ApiAutoLavado.UI.Controllers
         }
 
         [HttpGet]
-        public ActionResult<IEnumerable<Servicio>> ObtenerTodos()
+        public ActionResult<IEnumerable<ServicioResponse>> ObtenerTodos()
         {
             return Ok(_servicioService.ObtenerTodos());
         }

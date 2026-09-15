@@ -1,6 +1,6 @@
-namespace ApiAutoLavado.Domain.Models
+namespace ApiAutoLavado.Aplicacion.Dtos
 {
-    public class Operario
+    public class OperarioResponse
     {
         public int Id { get; set; }
 
@@ -12,6 +12,6 @@ namespace ApiAutoLavado.Domain.Models
 
         public required string Telefono { get; set; }
 
-        public bool Activo { get; set; } = true;
+        public bool Activo { get; set; }
     }
 }

@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using ApiAutoLavado.Domain.Enums;
 
-namespace ApiAutoLavado.UI.Dtos
+namespace ApiAutoLavado.Aplicacion.Dtos
 {
     public class CrearTurnoRequest
     {
@@ -17,10 +17,10 @@ namespace ApiAutoLavado.UI.Dtos
         [RegularExpression("^[0-9]+$", ErrorMessage = "El teléfono solo debe contener números.")]
         public required string TelefonoCliente { get; set; }
 
-        public Guid IdServicio { get; set; }
+        public int IdServicio { get; set; }
 
-        public Guid IdOperario { get; set; }
+        public int IdOperario { get; set; }
 
-        public Guid IdBahia { get; set; }
+        public int IdBahia { get; set; }
     }
 }

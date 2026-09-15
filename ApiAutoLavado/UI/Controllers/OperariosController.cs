@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using ApiAutoLavado.Domain.Exceptions;
-using ApiAutoLavado.Domain.Models;
-using ApiAutoLavado.UI.Dtos;
-using ApiAutoLavado.LogicaNegocio.Services;
+using ApiAutoLavado.Aplicacion.Dtos;
+using ApiAutoLavado.Aplicacion.Services;
 
 namespace ApiAutoLavado.UI.Controllers
 {
@@ -18,23 +16,16 @@ namespace ApiAutoLavado.UI.Controllers
         }
 
         [HttpGet("activos")]
-        public ActionResult<IEnumerable<Operario>> ObtenerActivos()
+        public ActionResult<IEnumerable<OperarioResponse>> ObtenerActivos()
         {
             return Ok(_operarioService.ObtenerActivos());
         }
 
         [HttpPost]
-        public ActionResult<Operario> Crear([FromBody] CrearOperarioRequest request)
+        public ActionResult<OperarioResponse> Crear([FromBody] CrearOperarioRequest request)
         {
-            try
-            {
-                var operario = _operarioService.Crear(request);
-                return StatusCode(StatusCodes.Status201Created, operario);
-            }
-            catch (ReglaNegocioException ex)
-            {
-                return Conflict(new { mensaje = ex.Message });
-            }
+            var operario = _operarioService.Crear(request);
+            return StatusCode(StatusCodes.Status201Created, operario);
         }
     }
 }
