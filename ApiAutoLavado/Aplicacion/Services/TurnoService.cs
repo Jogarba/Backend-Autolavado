@@ -88,47 +88,88 @@ namespace ApiAutoLavado.Aplicacion.Services
                 throw new NoEncontradoException($"No existe una bahía con id {request.IdBahia}.");
             }
 
-            if (!_bahias.IntentarOcupar(request.IdBahia))
+            if (!_operarios.IntentarOcupar(request.IdOperario))
             {
-                throw new ReglaNegocioException($"La bahía {request.IdBahia} no está disponible.");
+                throw new ReglaNegocioException(
+                    $"El operario {operario.Nombres} {operario.Apellidos} no está disponible.");
             }
 
             try
             {
-                var ahora = DateTime.UtcNow;
-
-                var turno = new Turno
+                if (!_bahias.IntentarOcupar(request.IdBahia))
                 {
-                    NumeroTurno = GenerarNumeroTurno(ahora),
-                    Placa = request.Placa.Trim().ToUpperInvariant(),
-                    TipoVehiculo = tipoVehiculo,
-                    TelefonoCliente = request.TelefonoCliente.Trim(),
-                    IdServicio = request.IdServicio,
-                    IdOperario = request.IdOperario,
-                    IdBahia = request.IdBahia,
-                    EstadoActual = EstadoTurno.Recepcion,
-                    FechaIngreso = ahora,
-                    HashConsulta = string.Empty
-                };
+                    throw new ReglaNegocioException($"La bahía {request.IdBahia} no está disponible.");
+                }
 
-                turno.HashConsulta = GenerarHash(turno);
-                var idTurno = _turnos.Agregar(turno);
-
-                return new TurnoCreadoResponse
+                try
                 {
-                    IdTurno = idTurno,
-                    NumeroTurno = turno.NumeroTurno,
-                    Estado = turno.EstadoActual,
-                    HashConsulta = turno.HashConsulta,
-                    QrUrl = $"{BaseUrlQr}{turno.HashConsulta}",
-                    FechaIngreso = turno.FechaIngreso
-                };
+                    var ahora = DateTime.UtcNow;
+
+                    var turno = new Turno
+                    {
+                        NumeroTurno = GenerarNumeroTurno(ahora),
+                        Placa = request.Placa.Trim().ToUpperInvariant(),
+                        TipoVehiculo = tipoVehiculo,
+                        TelefonoCliente = request.TelefonoCliente.Trim(),
+                        IdServicio = request.IdServicio,
+                        IdOperario = request.IdOperario,
+                        IdBahia = request.IdBahia,
+                        EstadoActual = EstadoTurno.Recepcion,
+                        FechaIngreso = ahora,
+                        HashConsulta = string.Empty
+                    };
+
+                    turno.HashConsulta = GenerarHash(turno);
+                    var idTurno = _turnos.Agregar(turno);
+
+                    return new TurnoCreadoResponse
+                    {
+                        IdTurno = idTurno,
+                        NumeroTurno = turno.NumeroTurno,
+                        Estado = turno.EstadoActual,
+                        HashConsulta = turno.HashConsulta,
+                        QrUrl = $"{BaseUrlQr}{turno.HashConsulta}",
+                        FechaIngreso = turno.FechaIngreso
+                    };
+                }
+                catch
+                {
+                    _bahias.Liberar(request.IdBahia);
+                    throw;
+                }
             }
             catch
             {
-                _bahias.Liberar(request.IdBahia);
+                _operarios.Liberar(request.IdOperario);
                 throw;
             }
+        }
+
+        public TurnoResponse Finalizar(long id) => CambiarEstado(id, EstadoTurno.Finalizado);
+
+        public TurnoResponse Cancelar(long id) => CambiarEstado(id, EstadoTurno.Cancelado);
+
+        private TurnoResponse CambiarEstado(long id, EstadoTurno nuevo)
+        {
+            var turno = _turnos.ObtenerPorId(id)
+                ?? throw new NoEncontradoException($"No existe un turno con id {id}.");
+
+            if (turno.EstadoActual != EstadoTurno.Recepcion)
+            {
+                throw new ReglaNegocioException(
+                    $"El turno {turno.NumeroTurno} ya está {turno.EstadoActual.ToString().ToUpperInvariant()}.");
+            }
+
+            if (!_turnos.IntentarCambiarEstado(id, EstadoTurno.Recepcion, nuevo))
+            {
+                throw new ReglaNegocioException($"No se pudo actualizar el turno {turno.NumeroTurno}.");
+            }
+
+            _bahias.Liberar(turno.IdBahia);
+            _operarios.Liberar(turno.IdOperario);
+
+            turno.EstadoActual = nuevo;
+            return turno.ToResponse();
         }
 
         private string GenerarNumeroTurno(DateTime fecha)

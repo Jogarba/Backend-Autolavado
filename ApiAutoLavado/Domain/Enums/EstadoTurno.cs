@@ -5,6 +5,12 @@ namespace ApiAutoLavado.Domain.Enums
     public enum EstadoTurno
     {
         [JsonStringEnumMemberName("RECEPCION")]
-        Recepcion
+        Recepcion,
+
+        [JsonStringEnumMemberName("FINALIZADO")]
+        Finalizado,
+
+        [JsonStringEnumMemberName("CANCELADO")]
+        Cancelado
     }
 }

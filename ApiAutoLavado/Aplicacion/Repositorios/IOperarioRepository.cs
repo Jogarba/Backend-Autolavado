@@ -9,5 +9,9 @@ namespace ApiAutoLavado.Aplicacion.Repositorios
         Operario? ObtenerPorId(int id);
 
         int? IntentarAgregar(Operario operario);
+
+        bool IntentarOcupar(int id);
+
+        bool Liberar(int id);
     }
 }

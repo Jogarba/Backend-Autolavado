@@ -23,6 +23,7 @@ namespace ApiAutoLavado.Persistencia
                 documento VARCHAR(15) NOT NULL,
                 telefono VARCHAR(10) NOT NULL,
                 activo TINYINT(1) NOT NULL DEFAULT 1,
+                estado VARCHAR(20) NOT NULL DEFAULT 'DISPONIBLE',
                 PRIMARY KEY (id_operario),
                 UNIQUE KEY documento (documento)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -77,9 +78,23 @@ namespace ApiAutoLavado.Persistencia
                 conexion.Execute(sentencia);
             }
 
+            AsegurarColumnas(conexion);
             SembrarBahias(conexion);
             SembrarOperarios(conexion);
             SembrarServicios(conexion);
+        }
+
+        private static void AsegurarColumnas(IDbConnection conexion)
+        {
+            var existeEstado = conexion.ExecuteScalar<long>(
+                "SELECT COUNT(*) FROM information_schema.COLUMNS " +
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'operarios' AND COLUMN_NAME = 'estado'");
+
+            if (existeEstado == 0)
+            {
+                conexion.Execute(
+                    "ALTER TABLE operarios ADD COLUMN estado VARCHAR(20) NOT NULL DEFAULT 'DISPONIBLE' AFTER activo");
+            }
         }
 
         private static void SembrarBahias(IDbConnection conexion)

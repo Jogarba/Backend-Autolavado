@@ -36,6 +36,8 @@ namespace ApiAutoLavado.Persistencia.Mapeo
 
         public bool Activo { get; set; }
 
+        public string Estado { get; set; } = string.Empty;
+
         public Operario AModelo() => new()
         {
             Id = Id,
@@ -43,7 +45,8 @@ namespace ApiAutoLavado.Persistencia.Mapeo
             Apellidos = Apellidos,
             Documento = Documento,
             Telefono = Telefono,
-            Activo = Activo
+            Activo = Activo,
+            Estado = Enum.Parse<EstadoOperario>(Estado, ignoreCase: true)
         };
     }
 

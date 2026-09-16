@@ -1,3 +1,4 @@
+using ApiAutoLavado.Domain.Enums;
 using ApiAutoLavado.Domain.Models;
 
 namespace ApiAutoLavado.Aplicacion.Repositorios
@@ -6,6 +7,10 @@ namespace ApiAutoLavado.Aplicacion.Repositorios
     {
         IReadOnlyCollection<Turno> ObtenerTodos();
 
+        Turno? ObtenerPorId(long id);
+
         long Agregar(Turno turno);
+
+        bool IntentarCambiarEstado(long id, EstadoTurno estadoEsperado, EstadoTurno estadoNuevo);
     }
 }

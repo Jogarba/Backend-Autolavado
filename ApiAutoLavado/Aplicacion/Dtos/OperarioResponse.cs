@@ -1,3 +1,5 @@
+using ApiAutoLavado.Domain.Enums;
+
 namespace ApiAutoLavado.Aplicacion.Dtos
 {
     public class OperarioResponse
@@ -13,5 +15,7 @@ namespace ApiAutoLavado.Aplicacion.Dtos
         public required string Telefono { get; set; }
 
         public bool Activo { get; set; }
+
+        public EstadoOperario Estado { get; set; }
     }
 }

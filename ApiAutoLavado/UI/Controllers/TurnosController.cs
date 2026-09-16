@@ -27,5 +27,17 @@ namespace ApiAutoLavado.UI.Controllers
             var response = _turnoService.Crear(request);
             return StatusCode(StatusCodes.Status201Created, response);
         }
+
+        [HttpPatch("{id:long}/finalizar")]
+        public ActionResult<TurnoResponse> Finalizar(long id)
+        {
+            return Ok(_turnoService.Finalizar(id));
+        }
+
+        [HttpPatch("{id:long}/cancelar")]
+        public ActionResult<TurnoResponse> Cancelar(long id)
+        {
+            return Ok(_turnoService.Cancelar(id));
+        }
     }
 }

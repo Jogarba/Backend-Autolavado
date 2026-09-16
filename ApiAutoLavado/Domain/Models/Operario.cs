@@ -1,3 +1,5 @@
+using ApiAutoLavado.Domain.Enums;
+
 namespace ApiAutoLavado.Domain.Models
 {
     public class Operario
@@ -13,5 +15,9 @@ namespace ApiAutoLavado.Domain.Models
         public required string Telefono { get; set; }
 
         public bool Activo { get; set; } = true;
+
+        public EstadoOperario Estado { get; set; } = EstadoOperario.Disponible;
+
+        public bool EstaDisponible => Activo && Estado == EstadoOperario.Disponible;
     }
 }

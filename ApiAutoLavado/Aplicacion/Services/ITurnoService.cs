@@ -7,5 +7,9 @@ namespace ApiAutoLavado.Aplicacion.Services
         IReadOnlyCollection<TurnoResponse> ObtenerActivos();
 
         TurnoCreadoResponse Crear(CrearTurnoRequest request);
+
+        TurnoResponse Finalizar(long id);
+
+        TurnoResponse Cancelar(long id);
     }
 }

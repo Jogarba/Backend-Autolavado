@@ -19,7 +19,8 @@ namespace ApiAutoLavado.Aplicacion.Dtos
             Apellidos = operario.Apellidos,
             Documento = operario.Documento,
             Telefono = operario.Telefono,
-            Activo = operario.Activo
+            Activo = operario.Activo,
+            Estado = operario.Estado
         };
 
         public static ServicioResponse ToResponse(this Servicio servicio) => new()

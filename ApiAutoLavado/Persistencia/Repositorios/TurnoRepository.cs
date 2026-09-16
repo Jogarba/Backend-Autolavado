@@ -1,5 +1,6 @@
 using Dapper;
 using ApiAutoLavado.Aplicacion.Repositorios;
+using ApiAutoLavado.Domain.Enums;
 using ApiAutoLavado.Domain.Models;
 using ApiAutoLavado.Persistencia.Mapeo;
 
@@ -27,6 +28,16 @@ namespace ApiAutoLavado.Persistencia.Repositorios
             return filas.Select(f => f.AModelo()).ToList();
         }
 
+        public Turno? ObtenerPorId(long id)
+        {
+            using var conexion = _fabrica.Crear();
+            var fila = conexion.QuerySingleOrDefault<TurnoFila>(
+                $"SELECT {Columnas} FROM turnos WHERE id_turno = @Id",
+                new { Id = id });
+
+            return fila?.AModelo();
+        }
+
         public long Agregar(Turno turno)
         {
             using var conexion = _fabrica.Crear();
@@ -52,6 +63,21 @@ namespace ApiAutoLavado.Persistencia.Repositorios
                 });
 
             return conexion.ExecuteScalar<long>("SELECT LAST_INSERT_ID()");
+        }
+
+        public bool IntentarCambiarEstado(long id, EstadoTurno estadoEsperado, EstadoTurno estadoNuevo)
+        {
+            using var conexion = _fabrica.Crear();
+            var afectadas = conexion.Execute(
+                "UPDATE turnos SET estado_actual = @Nuevo WHERE id_turno = @Id AND estado_actual = @Esperado",
+                new
+                {
+                    Id = id,
+                    Nuevo = estadoNuevo.ANombreBd(),
+                    Esperado = estadoEsperado.ANombreBd()
+                });
+
+            return afectadas > 0;
         }
     }
 }

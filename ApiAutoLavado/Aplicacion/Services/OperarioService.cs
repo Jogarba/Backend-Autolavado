@@ -17,7 +17,7 @@ namespace ApiAutoLavado.Aplicacion.Services
         public IReadOnlyCollection<OperarioResponse> ObtenerActivos()
         {
             return _operarios.ObtenerTodos()
-                .Where(o => o.Activo)
+                .Where(o => o.EstaDisponible)
                 .OrderBy(o => o.Nombres)
                 .Select(o => o.ToResponse())
                 .ToList();

@@ -1,6 +1,7 @@
 using Dapper;
 using MySqlConnector;
 using ApiAutoLavado.Aplicacion.Repositorios;
+using ApiAutoLavado.Domain.Enums;
 using ApiAutoLavado.Domain.Models;
 using ApiAutoLavado.Persistencia.Mapeo;
 
@@ -10,7 +11,7 @@ namespace ApiAutoLavado.Persistencia.Repositorios
     {
         private const string Columnas =
             "id_operario AS Id, nombres AS Nombres, apellidos AS Apellidos, documento AS Documento, " +
-            "telefono AS Telefono, activo AS Activo";
+            "telefono AS Telefono, activo AS Activo, estado AS Estado";
 
         private readonly IFabricaConexion _fabrica;
 
@@ -44,15 +45,16 @@ namespace ApiAutoLavado.Persistencia.Repositorios
             try
             {
                 conexion.Execute(
-                    "INSERT INTO operarios (nombres, apellidos, documento, telefono, activo) " +
-                    "VALUES (@Nombres, @Apellidos, @Documento, @Telefono, @Activo)",
+                    "INSERT INTO operarios (nombres, apellidos, documento, telefono, activo, estado) " +
+                    "VALUES (@Nombres, @Apellidos, @Documento, @Telefono, @Activo, @Estado)",
                     new
                     {
                         operario.Nombres,
                         operario.Apellidos,
                         operario.Documento,
                         operario.Telefono,
-                        Activo = operario.Activo ? 1 : 0
+                        Activo = operario.Activo ? 1 : 0,
+                        Estado = operario.Estado.ANombreBd()
                     });
 
                 return conexion.ExecuteScalar<int>("SELECT LAST_INSERT_ID()");
@@ -62,6 +64,35 @@ namespace ApiAutoLavado.Persistencia.Repositorios
                 // Documento duplicado (índice único)
                 return null;
             }
+        }
+
+        public bool IntentarOcupar(int id)
+        {
+            using var conexion = _fabrica.Crear();
+            var afectadas = conexion.Execute(
+                "UPDATE operarios SET estado = @Ocupado WHERE id_operario = @Id AND estado = @Disponible",
+                new
+                {
+                    Id = id,
+                    Ocupado = EstadoOperario.Ocupado.ANombreBd(),
+                    Disponible = EstadoOperario.Disponible.ANombreBd()
+                });
+
+            return afectadas > 0;
+        }
+
+        public bool Liberar(int id)
+        {
+            using var conexion = _fabrica.Crear();
+            var afectadas = conexion.Execute(
+                "UPDATE operarios SET estado = @Disponible WHERE id_operario = @Id",
+                new
+                {
+                    Id = id,
+                    Disponible = EstadoOperario.Disponible.ANombreBd()
+                });
+
+            return afectadas > 0;
         }
     }
 }
