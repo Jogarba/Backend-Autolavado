@@ -15,6 +15,12 @@ namespace ApiAutoLavado.UI.Controllers
             _bahiaService = bahiaService;
         }
 
+        [HttpGet]
+        public ActionResult<IEnumerable<BahiaResponse>> ObtenerTodas()
+        {
+            return Ok(_bahiaService.ObtenerTodas());
+        }
+
         [HttpGet("disponibles")]
         public ActionResult<IEnumerable<BahiaResponse>> ObtenerDisponibles()
         {

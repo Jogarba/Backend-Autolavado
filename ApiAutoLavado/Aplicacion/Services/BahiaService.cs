@@ -13,6 +13,14 @@ namespace ApiAutoLavado.Aplicacion.Services
             _bahias = bahias;
         }
 
+        public IReadOnlyCollection<BahiaResponse> ObtenerTodas()
+        {
+            return _bahias.ObtenerTodas()
+                .OrderBy(b => b.NombreBahia)
+                .Select(b => b.ToResponse())
+                .ToList();
+        }
+
         public IReadOnlyCollection<BahiaResponse> ObtenerDisponibles()
         {
             return _bahias.ObtenerTodas()

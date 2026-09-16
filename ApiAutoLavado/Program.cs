@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using ApiAutoLavado.Aplicacion.Repositorios;
 using ApiAutoLavado.Aplicacion.Services;
@@ -20,6 +21,13 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
     });
+
+// Misma política para el generador de OpenAPI (usa las opciones de Minimal APIs, no las de MVC)
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 // Configurar lectura de cabeceras de proxy de Render (resuelve el error de Mixed Content)
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -61,7 +69,31 @@ builder.Services.AddSingleton<IServicioService, ServicioService>();
 builder.Services.AddSingleton<ITurnoService, TurnoService>();
 
 // Documentación OpenAPI
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    // Los enums se serializan como string; el generador los marcaba como integer.
+    options.AddSchemaTransformer((schema, context, _) =>
+    {
+        var tipo = Nullable.GetUnderlyingType(context.JsonTypeInfo.Type) ?? context.JsonTypeInfo.Type;
+        if (tipo.IsEnum)
+        {
+            schema.Type = JsonSchemaType.String;
+
+            if (schema.Enum is { } valores)
+            {
+                for (var i = valores.Count - 1; i >= 0; i--)
+                {
+                    if (valores[i] is null || valores[i].GetValueKind() == JsonValueKind.Null)
+                    {
+                        valores.RemoveAt(i);
+                    }
+                }
+            }
+        }
+
+        return Task.CompletedTask;
+    });
+});
 
 var app = builder.Build();
 

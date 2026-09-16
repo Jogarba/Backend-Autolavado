@@ -17,10 +17,10 @@ namespace ApiAutoLavado.Aplicacion.Dtos
         [RegularExpression("^[0-9]+$", ErrorMessage = "El teléfono solo debe contener números.")]
         public required string TelefonoCliente { get; set; }
 
-        public int IdServicio { get; set; }
+        public required int IdServicio { get; set; }
 
-        public int IdOperario { get; set; }
+        public required int IdOperario { get; set; }
 
-        public int IdBahia { get; set; }
+        public required int IdBahia { get; set; }
     }
 }

@@ -1,4 +1,3 @@
-using System.Text.Json;
 using ApiAutoLavado.Domain.Exceptions;
 
 namespace ApiAutoLavado.UI.Middleware
@@ -48,11 +47,8 @@ namespace ApiAutoLavado.UI.Middleware
             }
 
             context.Response.Clear();
-            context.Response.StatusCode = codigo;
-            context.Response.ContentType = "application/json";
-
-            var cuerpo = JsonSerializer.Serialize(new { mensaje });
-            await context.Response.WriteAsync(cuerpo);
+            await Results.Problem(statusCode: codigo, title: mensaje, detail: mensaje)
+                .ExecuteAsync(context);
         }
     }
 }
