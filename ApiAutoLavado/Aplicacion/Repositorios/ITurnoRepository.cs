@@ -11,6 +11,8 @@ namespace ApiAutoLavado.Aplicacion.Repositorios
 
         long Agregar(Turno turno);
 
-        bool IntentarCambiarEstado(long id, EstadoTurno estadoEsperado, EstadoTurno estadoNuevo);
+        bool IntentarCambiarEstado(long id, string estadoEsperado, string estadoNuevo);
+
+        bool AsignarOperario(long idTurno, int idOperario, string estadoNuevo);
     }
 }

@@ -3,24 +3,6 @@ using ApiAutoLavado.Domain.Models;
 
 namespace ApiAutoLavado.Persistencia.Mapeo
 {
-    internal sealed class BahiaFila
-    {
-        public int Id { get; set; }
-
-        public string NombreBahia { get; set; } = string.Empty;
-
-        public string Tipo { get; set; } = string.Empty;
-
-        public string Estado { get; set; } = string.Empty;
-
-        public Bahia AModelo() => new()
-        {
-            Id = Id,
-            NombreBahia = NombreBahia,
-            Tipo = Enum.Parse<TipoBahia>(Tipo, ignoreCase: true),
-            Estado = Enum.Parse<EstadoBahia>(Estado, ignoreCase: true)
-        };
-    }
 
     internal sealed class OperarioFila
     {
@@ -111,15 +93,9 @@ namespace ApiAutoLavado.Persistencia.Mapeo
 
         public string Placa { get; set; } = string.Empty;
 
-        public string TipoVehiculo { get; set; } = string.Empty;
-
-        public string TelefonoCliente { get; set; } = string.Empty;
-
         public int IdServicio { get; set; }
 
-        public int IdOperario { get; set; }
-
-        public int IdBahia { get; set; }
+        public int? IdOperario { get; set; }
 
         public string EstadoActual { get; set; } = string.Empty;
 
@@ -132,12 +108,9 @@ namespace ApiAutoLavado.Persistencia.Mapeo
             Id = Id,
             NumeroTurno = NumeroTurno,
             Placa = Placa,
-            TipoVehiculo = Enum.Parse<TipoVehiculo>(TipoVehiculo, ignoreCase: true),
-            TelefonoCliente = TelefonoCliente,
             IdServicio = IdServicio,
             IdOperario = IdOperario,
-            IdBahia = IdBahia,
-            EstadoActual = Enum.Parse<EstadoTurno>(EstadoActual, ignoreCase: true),
+            EstadoActual = EstadoActual,
             FechaIngreso = DateTime.SpecifyKind(FechaIngreso, DateTimeKind.Utc),
             HashConsulta = HashConsulta
         };

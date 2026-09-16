@@ -10,17 +10,11 @@ namespace ApiAutoLavado.Domain.Models
 
         public required string Placa { get; set; }
 
-        public TipoVehiculo TipoVehiculo { get; set; }
-
-        public required string TelefonoCliente { get; set; }
-
         public int IdServicio { get; set; }
 
-        public int IdOperario { get; set; }
+        public int? IdOperario { get; set; }
 
-        public int IdBahia { get; set; }
-
-        public EstadoTurno EstadoActual { get; set; } = EstadoTurno.Recepcion;
+        public string EstadoActual { get; set; } = "EN_COLA";
 
         public DateTime FechaIngreso { get; set; }
 

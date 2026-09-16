@@ -8,8 +8,12 @@ namespace ApiAutoLavado.Aplicacion.Services
 
         TurnoCreadoResponse Crear(CrearTurnoRequest request);
 
+        TurnoResponse ActualizarFase(long id, string nuevaFase);
+
         TurnoResponse Finalizar(long id);
 
         TurnoResponse Cancelar(long id);
+
+        TrazabilidadTurnoResponse ObtenerTrazabilidad(string identificador);
     }
 }

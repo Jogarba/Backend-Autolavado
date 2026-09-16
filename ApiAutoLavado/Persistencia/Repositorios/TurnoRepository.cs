@@ -9,9 +9,9 @@ namespace ApiAutoLavado.Persistencia.Repositorios
     internal sealed class TurnoRepository : ITurnoRepository
     {
         private const string Columnas =
-            "id_turno AS Id, numero_turno AS NumeroTurno, placa AS Placa, tipo_vehiculo AS TipoVehiculo, " +
-            "telefono_cliente AS TelefonoCliente, id_servicio AS IdServicio, id_operario AS IdOperario, " +
-            "id_bahia AS IdBahia, estado_actual AS EstadoActual, fecha_ingreso AS FechaIngreso, " +
+            "id_turno AS Id, numero_turno AS NumeroTurno, placa AS Placa, " +
+            "id_servicio AS IdServicio, id_operario AS IdOperario, " +
+            "estado_actual AS EstadoActual, fecha_ingreso AS FechaIngreso, " +
             "hash_consulta AS HashConsulta";
 
         private readonly IFabricaConexion _fabrica;
@@ -44,20 +44,17 @@ namespace ApiAutoLavado.Persistencia.Repositorios
             conexion.Open();
 
             conexion.Execute(
-                "INSERT INTO turnos (numero_turno, placa, tipo_vehiculo, telefono_cliente, id_servicio, " +
-                "id_operario, id_bahia, estado_actual, fecha_ingreso, hash_consulta) " +
-                "VALUES (@NumeroTurno, @Placa, @TipoVehiculo, @TelefonoCliente, @IdServicio, " +
-                "@IdOperario, @IdBahia, @EstadoActual, @FechaIngreso, @HashConsulta)",
+                "INSERT INTO turnos (numero_turno, placa, id_servicio, " +
+                "id_operario, estado_actual, fecha_ingreso, hash_consulta) " +
+                "VALUES (@NumeroTurno, @Placa, @IdServicio, " +
+                "@IdOperario, @EstadoActual, @FechaIngreso, @HashConsulta)",
                 new
                 {
                     turno.NumeroTurno,
                     turno.Placa,
-                    TipoVehiculo = turno.TipoVehiculo.ANombreBd(),
-                    turno.TelefonoCliente,
                     turno.IdServicio,
                     turno.IdOperario,
-                    turno.IdBahia,
-                    EstadoActual = turno.EstadoActual.ANombreBd(),
+                    turno.EstadoActual,
                     turno.FechaIngreso,
                     turno.HashConsulta
                 });
@@ -65,7 +62,7 @@ namespace ApiAutoLavado.Persistencia.Repositorios
             return conexion.ExecuteScalar<long>("SELECT LAST_INSERT_ID()");
         }
 
-        public bool IntentarCambiarEstado(long id, EstadoTurno estadoEsperado, EstadoTurno estadoNuevo)
+        public bool IntentarCambiarEstado(long id, string estadoEsperado, string estadoNuevo)
         {
             using var conexion = _fabrica.Crear();
             var afectadas = conexion.Execute(
@@ -73,8 +70,23 @@ namespace ApiAutoLavado.Persistencia.Repositorios
                 new
                 {
                     Id = id,
-                    Nuevo = estadoNuevo.ANombreBd(),
-                    Esperado = estadoEsperado.ANombreBd()
+                    Nuevo = estadoNuevo,
+                    Esperado = estadoEsperado
+                });
+
+            return afectadas > 0;
+        }
+
+        public bool AsignarOperario(long idTurno, int idOperario, string estadoNuevo)
+        {
+            using var conexion = _fabrica.Crear();
+            var afectadas = conexion.Execute(
+                "UPDATE turnos SET id_operario = @IdOperario, estado_actual = @EstadoNuevo WHERE id_turno = @IdTurno",
+                new
+                {
+                    IdTurno = idTurno,
+                    IdOperario = idOperario,
+                    EstadoNuevo = estadoNuevo
                 });
 
             return afectadas > 0;

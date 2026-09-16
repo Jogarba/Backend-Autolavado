@@ -7,15 +7,6 @@ namespace ApiAutoLavado.Persistencia
     {
         private const string Esquema =
             """
-            CREATE TABLE IF NOT EXISTS bahias (
-                id_bahia INT NOT NULL AUTO_INCREMENT,
-                nombre_bahia VARCHAR(30) NOT NULL,
-                tipo VARCHAR(30) NOT NULL,
-                estado VARCHAR(20) NOT NULL DEFAULT 'DISPONIBLE',
-                PRIMARY KEY (id_bahia),
-                UNIQUE KEY nombre_bahia (nombre_bahia)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
             CREATE TABLE IF NOT EXISTS usuarios (
                 id_usuario INT NOT NULL AUTO_INCREMENT,
                 nombre_usuario VARCHAR(60) NOT NULL,
@@ -52,26 +43,47 @@ namespace ApiAutoLavado.Persistencia
                 UNIQUE KEY nombre (nombre)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+            CREATE TABLE IF NOT EXISTS vehiculos (
+                placa VARCHAR(6) PRIMARY KEY,
+                tipo_vehiculo VARCHAR(20) NOT NULL,
+                telefono_cliente VARCHAR(10) NOT NULL,
+                fecha_primer_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
             CREATE TABLE IF NOT EXISTS turnos (
                 id_turno BIGINT NOT NULL AUTO_INCREMENT,
                 numero_turno VARCHAR(10) NOT NULL,
                 placa VARCHAR(6) NOT NULL,
-                tipo_vehiculo VARCHAR(20) NOT NULL,
-                telefono_cliente VARCHAR(10) NOT NULL,
                 id_servicio INT NOT NULL,
-                id_operario INT NOT NULL,
-                id_bahia INT NOT NULL,
-                estado_actual VARCHAR(30) NOT NULL DEFAULT 'RECEPCION',
+                id_operario INT NULL,
+                estado_actual VARCHAR(30) NOT NULL DEFAULT 'EN_COLA',
                 fecha_ingreso TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 hash_consulta VARCHAR(64) NOT NULL,
                 PRIMARY KEY (id_turno),
                 UNIQUE KEY hash_consulta (hash_consulta),
-                KEY id_servicio (id_servicio),
-                KEY id_operario (id_operario),
-                KEY id_bahia (id_bahia),
+                KEY idx_vehiculos_placa (placa),
+                KEY idx_turnos_cola (estado_actual, fecha_ingreso),
+                KEY idx_operarios_estado (id_operario),
                 CONSTRAINT turnos_ibfk_1 FOREIGN KEY (id_servicio) REFERENCES servicios (id_servicio),
                 CONSTRAINT turnos_ibfk_2 FOREIGN KEY (id_operario) REFERENCES operarios (id_operario),
-                CONSTRAINT turnos_ibfk_3 FOREIGN KEY (id_bahia) REFERENCES bahias (id_bahia)
+                CONSTRAINT turnos_ibfk_3 FOREIGN KEY (placa) REFERENCES vehiculos (placa)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+            CREATE TABLE IF NOT EXISTS reservas (
+                id_reserva BIGINT NOT NULL AUTO_INCREMENT,
+                codigo_reserva VARCHAR(10) NOT NULL,
+                placa VARCHAR(6) NOT NULL,
+                id_servicio INT NOT NULL,
+                fecha_reserva DATE NOT NULL,
+                hora_reserva TIME NOT NULL,
+                estado VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE',
+                fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id_reserva),
+                UNIQUE KEY uq_codigo_reserva (codigo_reserva),
+                KEY idx_reservas_fecha (fecha_reserva),
+                KEY idx_reservas_placa (placa),
+                CONSTRAINT fk_reservas_vehiculo FOREIGN KEY (placa) REFERENCES vehiculos (placa),
+                CONSTRAINT fk_reservas_servicio FOREIGN KEY (id_servicio) REFERENCES servicios (id_servicio)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             """;
 
@@ -94,7 +106,6 @@ namespace ApiAutoLavado.Persistencia
             }
 
             AsegurarColumnas(conexion);
-            SembrarBahias(conexion);
             SembrarUsuarioAdministrador(conexion);
             SembrarOperarios(conexion);
             SembrarServicios(conexion);
@@ -106,10 +117,7 @@ namespace ApiAutoLavado.Persistencia
             conexion.Execute(
                 "UPDATE operarios SET estado = 'DISPONIBLE' " +
                 "WHERE activo = 1 AND estado = 'OCUPADO' " +
-                "AND id_operario NOT IN (SELECT id_operario FROM turnos WHERE estado_actual = 'RECEPCION'); " +
-                "UPDATE bahias SET estado = 'DISPONIBLE' " +
-                "WHERE estado = 'OCUPADA' " +
-                "AND id_bahia NOT IN (SELECT id_bahia FROM turnos WHERE estado_actual = 'RECEPCION');");
+                "AND id_operario NOT IN (SELECT id_operario FROM turnos WHERE estado_actual = 'RECEPCION');");
         }
 
         private static void AsegurarColumnas(IDbConnection conexion)
@@ -168,26 +176,7 @@ namespace ApiAutoLavado.Persistencia
                 });
         }
 
-        private static void SembrarBahias(IDbConnection conexion)
-        {
-            if (conexion.ExecuteScalar<long>("SELECT COUNT(*) FROM bahias") > 0)
-            {
-                return;
-            }
 
-            var bahias = new[]
-            {
-                new { Nombre = "Bahía 1", Tipo = "GENERAL", Estado = "DISPONIBLE" },
-                new { Nombre = "Bahía 2", Tipo = "GENERAL", Estado = "DISPONIBLE" },
-                new { Nombre = "Bahía 3", Tipo = "DETAILING", Estado = "DISPONIBLE" },
-                new { Nombre = "Bahía 4", Tipo = "SECADO", Estado = "MANTENIMIENTO" },
-                new { Nombre = "Bahía 5", Tipo = "DETAILING", Estado = "DISPONIBLE" }
-            };
-
-            conexion.Execute(
-                "INSERT INTO bahias (nombre_bahia, tipo, estado) VALUES (@Nombre, @Tipo, @Estado)",
-                bahias);
-        }
 
         private static void SembrarOperarios(IDbConnection conexion)
         {

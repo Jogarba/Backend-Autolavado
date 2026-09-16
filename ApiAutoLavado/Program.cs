@@ -41,16 +41,20 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
-// Habilitar CORS para permitir peticiones desde el navegador / frontend
+// Habilitar CORS para permitir peticiones y SignalR WebSockets desde cualquier frontend
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.SetIsOriginAllowed(_ => true)
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
+
+// Configurar SignalR para eventos en tiempo real
+builder.Services.AddSignalR();
 
 // Capa de persistencia (MySQL)
 var cadenaConexion = ConstructorConexion.NormalizarMySql(
@@ -62,11 +66,12 @@ var cadenaConexion = ConstructorConexion.NormalizarMySql(
 builder.Services.AddSingleton<IFabricaConexion>(_ => new FabricaConexionMySql(cadenaConexion));
 builder.Services.AddSingleton<IFabricaTransacciones, FabricaTransaccionesMySql>();
 builder.Services.AddSingleton<InicializadorBaseDatos>();
-builder.Services.AddSingleton<IBahiaRepository, BahiaRepository>();
+builder.Services.AddSingleton<IVehiculoRepository, VehiculoRepository>();
 builder.Services.AddSingleton<IOperarioRepository, OperarioRepository>();
 builder.Services.AddSingleton<IServicioRepository, ServicioRepository>();
 builder.Services.AddSingleton<ITurnoRepository, TurnoRepository>();
 builder.Services.AddSingleton<IUsuarioRepository, UsuarioRepository>();
+builder.Services.AddSingleton<IReservaRepository, ReservaRepository>();
 
 // Configuración de autenticación JWT (roles en claims)
 var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
@@ -120,12 +125,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 // Capa de aplicación (casos de uso)
+builder.Services.AddSingleton<ITurnoRealtimeNotifier, TurnoRealtimeNotifier>();
 builder.Services.AddSingleton<IAuthService, AuthService>();
-builder.Services.AddSingleton<IBahiaService, BahiaService>();
 builder.Services.AddSingleton<IOperarioService, OperarioService>();
 builder.Services.AddSingleton<IServicioService, ServicioService>();
 builder.Services.AddSingleton<ITurnoService, TurnoService>();
 builder.Services.AddSingleton<IUsuarioService, UsuarioService>();
+builder.Services.AddSingleton<IReservaService, ReservaService>();
 
 // Documentación OpenAPI
 builder.Services.AddOpenApi(options =>
@@ -187,5 +193,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ApiAutoLavado.UI.Hubs.TurnosHub>("/hubs/turnos");
 
 app.Run();

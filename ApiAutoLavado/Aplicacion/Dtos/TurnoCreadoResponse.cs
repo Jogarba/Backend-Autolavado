@@ -8,7 +8,7 @@ namespace ApiAutoLavado.Aplicacion.Dtos
 
         public required string NumeroTurno { get; set; }
 
-        public EstadoTurno Estado { get; set; }
+        public string Estado { get; set; } = string.Empty;
 
         public required string HashConsulta { get; set; }
 

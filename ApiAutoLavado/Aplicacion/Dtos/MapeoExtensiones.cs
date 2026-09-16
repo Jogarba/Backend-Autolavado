@@ -4,13 +4,6 @@ namespace ApiAutoLavado.Aplicacion.Dtos
 {
     public static class MapeoExtensiones
     {
-        public static BahiaResponse ToResponse(this Bahia bahia) => new()
-        {
-            Id = bahia.Id,
-            NombreBahia = bahia.NombreBahia,
-            Tipo = bahia.Tipo,
-            Estado = bahia.Estado
-        };
 
         public static OperarioResponse ToResponse(this Operario operario) => new()
         {
@@ -38,14 +31,29 @@ namespace ApiAutoLavado.Aplicacion.Dtos
             Id = turno.Id,
             NumeroTurno = turno.NumeroTurno,
             Placa = turno.Placa,
-            TipoVehiculo = turno.TipoVehiculo,
-            TelefonoCliente = turno.TelefonoCliente,
             IdServicio = turno.IdServicio,
             IdOperario = turno.IdOperario,
-            IdBahia = turno.IdBahia,
             EstadoActual = turno.EstadoActual,
             FechaIngreso = turno.FechaIngreso,
             HashConsulta = turno.HashConsulta
+        };
+
+        public static ReservaResponse ToResponse(this Reserva reserva) => new()
+        {
+            IdReserva = reserva.IdReserva,
+            CodigoReserva = reserva.CodigoReserva,
+            Placa = reserva.Placa,
+            IdServicio = reserva.IdServicio,
+            NombreServicio = reserva.NombreServicio ?? string.Empty,
+            TarifaEstimada = reserva.TarifaBase ?? 0m,
+            TiempoEstimadoMin = reserva.TiempoEstimadoMin ?? 30,
+            FechaReserva = reserva.FechaReserva,
+            HoraReserva = reserva.HoraReserva,
+            Estado = reserva.Estado,
+            TipoVehiculo = reserva.TipoVehiculo,
+            TelefonoCliente = reserva.TelefonoCliente,
+            FechaCreacion = reserva.FechaCreacion,
+            TrackingUrl = $"https://autolavadoexpress.com/track/{reserva.Placa}"
         };
     }
 }
