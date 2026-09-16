@@ -9,7 +9,6 @@ namespace ApiAutoLavado.Aplicacion.Services
         DisponibilidadFechaResponse ConsultarDisponibilidad(DateOnly fecha);
         ReservaResponse Crear(CrearReservaRequest request);
         ReservaResponse ObtenerPorCodigo(string codigo);
-        ReservaResponse ObtenerPorId(long id);
         IReadOnlyCollection<ReservaResponse> ObtenerPorFecha(DateOnly fecha);
         IReadOnlyCollection<ReservaResponse> ObtenerPorPlaca(string placa);
         IReadOnlyCollection<ReservaResponse> ObtenerTodas();

@@ -17,5 +17,7 @@ namespace ApiAutoLavado.Aplicacion.Services
         OperarioResponse Editar(int id, EditarOperarioRequest request);
 
         OperarioResponse Desactivar(int id);
+
+        OperarioResponse CambiarEstado(int id, string estado);
     }
 }

@@ -76,12 +76,15 @@ namespace ApiAutoLavado.Persistencia.Mapeo
 
         public int TiempoEstimadoMin { get; set; }
 
+        public string? Fases { get; set; }
+
         public Servicio AModelo() => new()
         {
             Id = Id,
             Nombre = Nombre,
             PrecioBase = PrecioBase,
-            TiempoEstimadoMin = TiempoEstimadoMin
+            TiempoEstimadoMin = TiempoEstimadoMin,
+            Fases = Fases
         };
     }
 

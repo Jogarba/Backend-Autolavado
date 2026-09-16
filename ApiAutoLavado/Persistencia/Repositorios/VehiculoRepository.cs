@@ -14,28 +14,39 @@ namespace ApiAutoLavado.Persistencia.Repositorios
             _fabricaConexion = fabricaConexion;
         }
 
-        public Vehiculo? ObtenerPorPlaca(string placa)
+        public Vehiculo? ObtenerPorPlaca(string placa, ITransaccionBd? transaccion = null)
         {
-            using var conexion = _fabricaConexion.Crear();
-            var sql = @"
-                SELECT 
-                    placa AS Placa, 
-                    tipo_vehiculo AS TipoVehiculo, 
-                    telefono_cliente AS TelefonoCliente, 
-                    fecha_primer_registro AS FechaPrimerRegistro
-                FROM vehiculos
-                WHERE placa = @Placa";
+            var conexion = transaccion?.Conexion ?? _fabricaConexion.Crear();
 
-            var result = conexion.QueryFirstOrDefault(sql, new { Placa = placa });
-            if (result == null) return null;
-
-            return new Vehiculo
+            try
             {
-                Placa = result.Placa,
-                TipoVehiculo = Enum.Parse<TipoVehiculo>(result.TipoVehiculo),
-                TelefonoCliente = result.TelefonoCliente,
-                FechaPrimerRegistro = result.FechaPrimerRegistro
-            };
+                var sql = @"
+                    SELECT 
+                        placa AS Placa, 
+                        tipo_vehiculo AS TipoVehiculo, 
+                        telefono_cliente AS TelefonoCliente, 
+                        fecha_primer_registro AS FechaPrimerRegistro
+                    FROM vehiculos
+                    WHERE placa = @Placa";
+
+                var result = conexion.QueryFirstOrDefault(sql, new { Placa = placa }, transaccion?.Transaccion);
+                if (result == null) return null;
+
+                return new Vehiculo
+                {
+                    Placa = result.Placa,
+                    TipoVehiculo = Enum.Parse<TipoVehiculo>(result.TipoVehiculo),
+                    TelefonoCliente = result.TelefonoCliente,
+                    FechaPrimerRegistro = result.FechaPrimerRegistro
+                };
+            }
+            finally
+            {
+                if (transaccion is null)
+                {
+                    conexion.Dispose();
+                }
+            }
         }
 
         public IReadOnlyCollection<Vehiculo> BuscarPorPrefijo(string prefijo)
@@ -67,37 +78,59 @@ namespace ApiAutoLavado.Persistencia.Repositorios
             return lista;
         }
 
-        public void Crear(Vehiculo vehiculo)
+        public void Crear(Vehiculo vehiculo, ITransaccionBd? transaccion = null)
         {
-            using var conexion = _fabricaConexion.Crear();
-            var sql = @"
-                INSERT INTO vehiculos (placa, tipo_vehiculo, telefono_cliente, fecha_primer_registro) 
-                VALUES (@Placa, @TipoVehiculo, @TelefonoCliente, @FechaPrimerRegistro)";
+            var conexion = transaccion?.Conexion ?? _fabricaConexion.Crear();
 
-            conexion.Execute(sql, new
+            try
             {
-                vehiculo.Placa,
-                TipoVehiculo = vehiculo.TipoVehiculo.ToString(),
-                vehiculo.TelefonoCliente,
-                vehiculo.FechaPrimerRegistro
-            });
+                var sql = @"
+                    INSERT INTO vehiculos (placa, tipo_vehiculo, telefono_cliente, fecha_primer_registro) 
+                    VALUES (@Placa, @TipoVehiculo, @TelefonoCliente, @FechaPrimerRegistro)";
+
+                conexion.Execute(sql, new
+                {
+                    vehiculo.Placa,
+                    TipoVehiculo = vehiculo.TipoVehiculo.ToString(),
+                    vehiculo.TelefonoCliente,
+                    vehiculo.FechaPrimerRegistro
+                }, transaccion?.Transaccion);
+            }
+            finally
+            {
+                if (transaccion is null)
+                {
+                    conexion.Dispose();
+                }
+            }
         }
 
-        public void Actualizar(Vehiculo vehiculo)
+        public void Actualizar(Vehiculo vehiculo, ITransaccionBd? transaccion = null)
         {
-            using var conexion = _fabricaConexion.Crear();
-            var sql = @"
-                UPDATE vehiculos 
-                SET tipo_vehiculo = @TipoVehiculo,
-                    telefono_cliente = @TelefonoCliente
-                WHERE placa = @Placa";
+            var conexion = transaccion?.Conexion ?? _fabricaConexion.Crear();
 
-            conexion.Execute(sql, new
+            try
             {
-                vehiculo.Placa,
-                TipoVehiculo = vehiculo.TipoVehiculo.ToString(),
-                vehiculo.TelefonoCliente
-            });
+                var sql = @"
+                    UPDATE vehiculos 
+                    SET tipo_vehiculo = @TipoVehiculo,
+                        telefono_cliente = @TelefonoCliente
+                    WHERE placa = @Placa";
+
+                conexion.Execute(sql, new
+                {
+                    vehiculo.Placa,
+                    TipoVehiculo = vehiculo.TipoVehiculo.ToString(),
+                    vehiculo.TelefonoCliente
+                }, transaccion?.Transaccion);
+            }
+            finally
+            {
+                if (transaccion is null)
+                {
+                    conexion.Dispose();
+                }
+            }
         }
     }
 }

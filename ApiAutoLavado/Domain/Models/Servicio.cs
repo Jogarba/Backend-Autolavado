@@ -9,5 +9,11 @@ namespace ApiAutoLavado.Domain.Models
         public decimal PrecioBase { get; set; }
 
         public int TiempoEstimadoMin { get; set; }
+
+        /// <summary>
+        /// Secuencia de fases del servicio (claves separadas por coma).
+        /// Ej: "EN_COLA,ENJABONADO,ENJUAGADO,SECADO,LISTO".
+        /// </summary>
+        public string? Fases { get; set; }
     }
 }

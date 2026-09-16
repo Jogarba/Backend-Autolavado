@@ -1,5 +1,3 @@
-using ApiAutoLavado.Domain.Enums;
-
 namespace ApiAutoLavado.Aplicacion.Dtos
 {
     public class TurnoResponse

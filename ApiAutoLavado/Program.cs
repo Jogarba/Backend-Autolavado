@@ -56,15 +56,48 @@ builder.Services.AddCors(options =>
 // Configurar SignalR para eventos en tiempo real
 builder.Services.AddSignalR();
 
-var cadenaConexion = ConstructorConexion.NormalizarMySql(
-    Environment.GetEnvironmentVariable("CONECTION_STRING")
-    ?? Environment.GetEnvironmentVariable("CONNECTION_STRING")
-    ?? Environment.GetEnvironmentVariable("DATABASE_URL")
-    ?? Environment.GetEnvironmentVariable("MYSQL_URL")
-    ?? Environment.GetEnvironmentVariable("MYSQL_CONNECTION_STRING")
-    ?? builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException(
-        "No se encontró la variable de conexión a la base de datos MySQL (CONECTION_STRING / CONNECTION_STRING / DATABASE_URL)."));
+// La búsqueda combina variable de entorno y configuración. IConfiguration es
+// insensible a mayúsculas, lo que evita fallos en Linux/Render cuando la variable
+// se define como "connection_string" o "Connection_String".
+var nombresConexion = new[]
+{
+    "CONECTION_STRING", "CONNECTION_STRING", "DATABASE_URL", "MYSQL_URL",
+    "MYSQL_CONNECTION_STRING", "MYSQL_DATABASE_URL", "DB_CONNECTION_STRING"
+};
+
+string? cadenaCruda = null;
+string? nombreConexion = null;
+
+foreach (var nombre in nombresConexion)
+{
+    var valor = Environment.GetEnvironmentVariable(nombre) ?? builder.Configuration[nombre];
+    if (!string.IsNullOrWhiteSpace(valor))
+    {
+        cadenaCruda = valor;
+        nombreConexion = nombre;
+        break;
+    }
+}
+
+if (string.IsNullOrWhiteSpace(cadenaCruda))
+{
+    cadenaCruda = builder.Configuration.GetConnectionString("DefaultConnection");
+    if (!string.IsNullOrWhiteSpace(cadenaCruda))
+    {
+        nombreConexion = "ConnectionStrings:DefaultConnection";
+    }
+}
+
+if (string.IsNullOrWhiteSpace(cadenaCruda))
+{
+    throw new InvalidOperationException(
+        "No se encontró la cadena de conexión MySQL. Defina CONNECTION_STRING (o CONECTION_STRING / DATABASE_URL / MYSQL_URL) en las variables de entorno del servicio.");
+}
+
+var cadenaConexion = ConstructorConexion.NormalizarMySql(cadenaCruda);
+
+Console.WriteLine(
+    $"[BaseDatos] Cadena de conexión leída desde '{nombreConexion}'. Destino: {ConstructorConexion.DescribirDestino(cadenaConexion)}");
 
 builder.Services.AddSingleton<IFabricaConexion>(_ => new FabricaConexionMySql(cadenaConexion));
 builder.Services.AddSingleton<IFabricaTransacciones, FabricaTransaccionesMySql>();
@@ -133,7 +166,6 @@ builder.Services.AddSingleton<IAuthService, AuthService>();
 builder.Services.AddSingleton<IOperarioService, OperarioService>();
 builder.Services.AddSingleton<IServicioService, ServicioService>();
 builder.Services.AddSingleton<ITurnoService, TurnoService>();
-builder.Services.AddSingleton<IUsuarioService, UsuarioService>();
 builder.Services.AddSingleton<IReservaService, ReservaService>();
 
 // Documentación OpenAPI

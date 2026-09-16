@@ -157,5 +157,50 @@ namespace ApiAutoLavado.Aplicacion.Services
             operario.Estado = EstadoOperario.Inactivo;
             return operario.ToResponse();
         }
+
+        public OperarioResponse CambiarEstado(int id, string estado)
+        {
+            var operario = _operarios.ObtenerPorId(id)
+                ?? throw new NoEncontradoException($"No existe un operario con id {id}.");
+
+            var normalizado = (estado ?? string.Empty).Trim().ToUpperInvariant();
+
+            // "LIBRE" es el nombre del enunciado; en el dominio equivale a DISPONIBLE.
+            if (normalizado == "LIBRE")
+            {
+                normalizado = "DISPONIBLE";
+            }
+
+            if (!Enum.TryParse<EstadoOperario>(normalizado, ignoreCase: true, out var nuevoEstado))
+            {
+                throw new ReglaNegocioException(
+                    $"Estado '{estado}' no válido. Use DISPONIBLE (o LIBRE), OCUPADO o INACTIVO.");
+            }
+
+            using var transaccion = _transacciones.Iniciar();
+            try
+            {
+                if (operario.UsuarioId is int usuarioId)
+                {
+                    _usuarios.CambiarActivo(usuarioId, nuevoEstado != EstadoOperario.Inactivo, transaccion);
+                }
+
+                if (!_operarios.CambiarEstado(id, nuevoEstado, transaccion))
+                {
+                    throw new ReglaNegocioException($"No se pudo actualizar el estado del operario {id}.");
+                }
+
+                transaccion.Confirmar();
+            }
+            catch
+            {
+                transaccion.Revertir();
+                throw;
+            }
+
+            operario.Estado = nuevoEstado;
+            operario.Activo = nuevoEstado != EstadoOperario.Inactivo;
+            return operario.ToResponse();
+        }
     }
 }

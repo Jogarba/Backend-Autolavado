@@ -17,7 +17,7 @@ WORKDIR /app
 COPY --from=build /app/publish .
 
 # Exponer el puerto estándar HTTP
-ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
-ENTRYPOINT ["dotnet", "ApiAutoLavado.dll"]
+# Render inyecta PORT; se usa ese puerto si existe, si no 8080.
+ENTRYPOINT ["sh", "-c", "ASPNETCORE_URLS=http://+:${PORT:-8080} exec dotnet ApiAutoLavado.dll"]

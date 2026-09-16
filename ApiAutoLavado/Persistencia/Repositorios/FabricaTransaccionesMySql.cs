@@ -23,7 +23,8 @@ namespace ApiAutoLavado.Persistencia.Repositorios
         {
             Conexion = conexion;
             Conexion.Open();
-            Transaccion = Conexion.BeginTransaction();
+            // RNF-04: aislamiento serializable para evitar colisiones en reservas y asignaciones concurrentes.
+            Transaccion = Conexion.BeginTransaction(IsolationLevel.Serializable);
         }
 
         public IDbConnection Conexion { get; }

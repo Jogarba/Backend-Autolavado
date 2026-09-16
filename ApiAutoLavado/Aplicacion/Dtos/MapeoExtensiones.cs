@@ -1,3 +1,5 @@
+using System.Linq;
+using ApiAutoLavado.Aplicacion.Catalogo;
 using ApiAutoLavado.Domain.Models;
 
 namespace ApiAutoLavado.Aplicacion.Dtos
@@ -23,7 +25,8 @@ namespace ApiAutoLavado.Aplicacion.Dtos
             Id = servicio.Id,
             Nombre = servicio.Nombre,
             PrecioBase = servicio.PrecioBase,
-            TiempoEstimadoMin = servicio.TiempoEstimadoMin
+            TiempoEstimadoMin = servicio.TiempoEstimadoMin,
+            Fases = CatalogoFases.ObtenerSecuencia(servicio.Fases).ToList()
         };
 
         public static TurnoResponse ToResponse(this Turno turno) => new()
@@ -55,5 +58,36 @@ namespace ApiAutoLavado.Aplicacion.Dtos
             FechaCreacion = reserva.FechaCreacion,
             TrackingUrl = $"https://autolavadoexpress.com/track/{reserva.Placa}"
         };
+
+        /// <summary>
+        /// RNF-05: recorta la información sensible antes de exponerla en canales públicos.
+        /// </summary>
+        public static TrazabilidadPublicaResponse ToPublica(this TrazabilidadTurnoResponse t) => new()
+        {
+            IdTurno = t.IdTurno,
+            NumeroTurno = t.NumeroTurno,
+            Placa = t.Placa,
+            TipoVehiculo = t.TipoVehiculo,
+            NombreServicio = t.NombreServicio,
+            TiempoEstimadoMin = t.TiempoEstimadoMin,
+            NombreOperario = PrimerNombre(t.NombreOperario),
+            FaseActual = t.FaseActual,
+            ProgresoPorcentaje = t.ProgresoPorcentaje,
+            MensajeEstado = t.MensajeEstado,
+            EstaListoParaRecoger = t.EstaListoParaRecoger,
+            FechaIngreso = t.FechaIngreso,
+            Fases = t.Fases
+        };
+
+        private static string? PrimerNombre(string? nombreCompleto)
+        {
+            if (string.IsNullOrWhiteSpace(nombreCompleto) ||
+                nombreCompleto.Equals("Por asignar", System.StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return nombreCompleto.Trim().Split(' ')[0];
+        }
     }
 }

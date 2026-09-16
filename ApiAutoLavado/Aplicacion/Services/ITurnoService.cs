@@ -6,6 +6,8 @@ namespace ApiAutoLavado.Aplicacion.Services
     {
         IReadOnlyCollection<TurnoResponse> ObtenerActivos();
 
+        TableroTurnosResponse ObtenerTablero();
+
         TurnoCreadoResponse Crear(CrearTurnoRequest request);
 
         TurnoResponse ActualizarFase(long id, string nuevaFase);

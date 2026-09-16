@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace ApiAutoLavado.Aplicacion.Dtos
 {
     public class ServicioResponse
@@ -9,5 +11,8 @@ namespace ApiAutoLavado.Aplicacion.Dtos
         public decimal PrecioBase { get; set; }
 
         public int TiempoEstimadoMin { get; set; }
+
+        /// <summary>Secuencia de fases del servicio (RN-05).</summary>
+        public List<string> Fases { get; set; } = new();
     }
 }

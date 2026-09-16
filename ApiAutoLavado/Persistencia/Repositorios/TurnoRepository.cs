@@ -1,6 +1,7 @@
+using System;
+using System.Linq;
 using Dapper;
 using ApiAutoLavado.Aplicacion.Repositorios;
-using ApiAutoLavado.Domain.Enums;
 using ApiAutoLavado.Domain.Models;
 using ApiAutoLavado.Persistencia.Mapeo;
 
@@ -38,58 +39,130 @@ namespace ApiAutoLavado.Persistencia.Repositorios
             return fila?.AModelo();
         }
 
-        public long Agregar(Turno turno)
+        public long Agregar(Turno turno, ITransaccionBd? transaccion = null)
         {
-            using var conexion = _fabrica.Crear();
-            conexion.Open();
+            var conexion = transaccion?.Conexion ?? _fabrica.Crear();
 
-            conexion.Execute(
-                "INSERT INTO turnos (numero_turno, placa, id_servicio, " +
-                "id_operario, estado_actual, fecha_ingreso, hash_consulta) " +
-                "VALUES (@NumeroTurno, @Placa, @IdServicio, " +
-                "@IdOperario, @EstadoActual, @FechaIngreso, @HashConsulta)",
-                new
+            try
+            {
+                conexion.Execute(
+                    "INSERT INTO turnos (numero_turno, placa, id_servicio, " +
+                    "id_operario, estado_actual, fecha_ingreso, hash_consulta) " +
+                    "VALUES (@NumeroTurno, @Placa, @IdServicio, " +
+                    "@IdOperario, @EstadoActual, @FechaIngreso, @HashConsulta)",
+                    new
+                    {
+                        turno.NumeroTurno,
+                        turno.Placa,
+                        turno.IdServicio,
+                        turno.IdOperario,
+                        turno.EstadoActual,
+                        turno.FechaIngreso,
+                        turno.HashConsulta
+                    },
+                    transaccion?.Transaccion);
+
+                return conexion.ExecuteScalar<long>(
+                    "SELECT LAST_INSERT_ID()",
+                    transaction: transaccion?.Transaccion);
+            }
+            finally
+            {
+                if (transaccion is null)
                 {
-                    turno.NumeroTurno,
-                    turno.Placa,
-                    turno.IdServicio,
-                    turno.IdOperario,
-                    turno.EstadoActual,
-                    turno.FechaIngreso,
-                    turno.HashConsulta
-                });
-
-            return conexion.ExecuteScalar<long>("SELECT LAST_INSERT_ID()");
+                    conexion.Dispose();
+                }
+            }
         }
 
-        public bool IntentarCambiarEstado(long id, string estadoEsperado, string estadoNuevo)
+        public bool IntentarCambiarEstado(long id, string estadoEsperado, string estadoNuevo, ITransaccionBd? transaccion = null)
         {
-            using var conexion = _fabrica.Crear();
-            var afectadas = conexion.Execute(
-                "UPDATE turnos SET estado_actual = @Nuevo WHERE id_turno = @Id AND estado_actual = @Esperado",
-                new
-                {
-                    Id = id,
-                    Nuevo = estadoNuevo,
-                    Esperado = estadoEsperado
-                });
+            var conexion = transaccion?.Conexion ?? _fabrica.Crear();
 
-            return afectadas > 0;
+            try
+            {
+                var afectadas = conexion.Execute(
+                    "UPDATE turnos SET estado_actual = @Nuevo WHERE id_turno = @Id AND estado_actual = @Esperado",
+                    new
+                    {
+                        Id = id,
+                        Nuevo = estadoNuevo,
+                        Esperado = estadoEsperado
+                    },
+                    transaccion?.Transaccion);
+
+                return afectadas > 0;
+            }
+            finally
+            {
+                if (transaccion is null)
+                {
+                    conexion.Dispose();
+                }
+            }
         }
 
-        public bool AsignarOperario(long idTurno, int idOperario, string estadoNuevo)
+        public bool AsignarOperario(long idTurno, int idOperario, string estadoNuevo, ITransaccionBd? transaccion = null)
+        {
+            var conexion = transaccion?.Conexion ?? _fabrica.Crear();
+
+            try
+            {
+                var afectadas = conexion.Execute(
+                    "UPDATE turnos SET id_operario = @IdOperario, estado_actual = @EstadoNuevo " +
+                    "WHERE id_turno = @IdTurno AND estado_actual = 'EN_COLA'",
+                    new
+                    {
+                        IdTurno = idTurno,
+                        IdOperario = idOperario,
+                        EstadoNuevo = estadoNuevo
+                    },
+                    transaccion?.Transaccion);
+
+                return afectadas > 0;
+            }
+            finally
+            {
+                if (transaccion is null)
+                {
+                    conexion.Dispose();
+                }
+            }
+        }
+
+        public int ObtenerMaximoSecuenciaDelDia(DateOnly fecha)
         {
             using var conexion = _fabrica.Crear();
-            var afectadas = conexion.Execute(
-                "UPDATE turnos SET id_operario = @IdOperario, estado_actual = @EstadoNuevo WHERE id_turno = @IdTurno",
-                new
-                {
-                    IdTurno = idTurno,
-                    IdOperario = idOperario,
-                    EstadoNuevo = estadoNuevo
-                });
+            return conexion.ExecuteScalar<int>(
+                "SELECT COALESCE(MAX(CAST(SUBSTRING(numero_turno, 3) AS UNSIGNED)), 0) " +
+                "FROM turnos WHERE DATE(fecha_ingreso) = @Fecha",
+                new { Fecha = fecha.ToDateTime(TimeOnly.MinValue) });
+        }
 
-            return afectadas > 0;
+        public int ContarActivosPorFechaYHora(DateOnly fecha, TimeOnly hora, ITransaccionBd? transaccion = null)
+        {
+            var conexion = transaccion?.Conexion ?? _fabrica.Crear();
+
+            try
+            {
+                return conexion.ExecuteScalar<int>(
+                    "SELECT COUNT(*) FROM turnos " +
+                    "WHERE DATE(fecha_ingreso) = @Fecha AND HOUR(fecha_ingreso) = @Hora " +
+                    "AND estado_actual NOT IN ('FINALIZADO', 'CANCELADO')",
+                    new
+                    {
+                        Fecha = fecha.ToDateTime(TimeOnly.MinValue),
+                        Hora = hora.Hour
+                    },
+                    transaccion?.Transaccion);
+            }
+            finally
+            {
+                if (transaccion is null)
+                {
+                    conexion.Dispose();
+                }
+            }
         }
     }
 }

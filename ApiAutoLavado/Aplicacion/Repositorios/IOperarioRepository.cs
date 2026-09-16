@@ -1,3 +1,4 @@
+using ApiAutoLavado.Domain.Enums;
 using ApiAutoLavado.Domain.Models;
 
 namespace ApiAutoLavado.Aplicacion.Repositorios
@@ -14,8 +15,10 @@ namespace ApiAutoLavado.Aplicacion.Repositorios
 
         bool Desactivar(int id, ITransaccionBd? transaccion = null);
 
-        bool IntentarOcupar(int id);
+        bool CambiarEstado(int id, EstadoOperario estado, ITransaccionBd? transaccion = null);
 
-        bool Liberar(int id);
+        bool IntentarOcupar(int id, ITransaccionBd? transaccion = null);
+
+        bool Liberar(int id, ITransaccionBd? transaccion = null);
     }
 }

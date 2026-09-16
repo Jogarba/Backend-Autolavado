@@ -66,5 +66,12 @@ namespace ApiAutoLavado.UI.Controllers
         {
             return Ok(_operarioService.Desactivar(id));
         }
+
+        [HttpPatch("{id:int}/estado")]
+        [Authorize(Roles = "Administrador")]
+        public ActionResult<OperarioResponse> CambiarEstado(int id, [FromBody] CambiarEstadoOperarioRequest request)
+        {
+            return Ok(_operarioService.CambiarEstado(id, request.Estado));
+        }
     }
 }

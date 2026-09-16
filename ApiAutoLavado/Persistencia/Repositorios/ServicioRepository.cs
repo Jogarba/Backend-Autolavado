@@ -8,7 +8,7 @@ namespace ApiAutoLavado.Persistencia.Repositorios
     internal sealed class ServicioRepository : IServicioRepository
     {
         private const string Columnas =
-            "id_servicio AS Id, nombre AS Nombre, tarifa_base AS PrecioBase, tiempo_estimado_min AS TiempoEstimadoMin";
+            "id_servicio AS Id, nombre AS Nombre, tarifa_base AS PrecioBase, tiempo_estimado_min AS TiempoEstimadoMin, fases AS Fases";
 
         private readonly IFabricaConexion _fabrica;
 

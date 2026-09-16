@@ -20,20 +20,26 @@ namespace ApiAutoLavado.Aplicacion.Services
         private readonly IVehiculoRepository _vehiculos;
         private readonly IServicioRepository _servicios;
         private readonly IOperarioRepository _operarios;
+        private readonly ITurnoRepository _turnos;
         private readonly ITurnoService _turnoService;
+        private readonly IFabricaTransacciones _transacciones;
 
         public ReservaService(
             IReservaRepository reservas,
             IVehiculoRepository vehiculos,
             IServicioRepository servicios,
             IOperarioRepository operarios,
-            ITurnoService turnoService)
+            ITurnoRepository turnos,
+            ITurnoService turnoService,
+            IFabricaTransacciones transacciones)
         {
             _reservas = reservas;
             _vehiculos = vehiculos;
             _servicios = servicios;
             _operarios = operarios;
+            _turnos = turnos;
             _turnoService = turnoService;
+            _transacciones = transacciones;
         }
 
         public DisponibilidadFechaResponse ConsultarDisponibilidad(DateOnly fecha)
@@ -52,7 +58,9 @@ namespace ApiAutoLavado.Aplicacion.Services
 
             while (cursor <= HoraFin)
             {
-                var ocupados = _reservas.ContarPorFechaYHora(fecha, cursor);
+                // RF-08: se cruzan reservas y turnos ya agendados para el mismo intervalo.
+                var ocupados = _reservas.ContarPorFechaYHora(fecha, cursor)
+                    + _turnos.ContarActivosPorFechaYHora(fecha, cursor);
                 var disponibles = Math.Max(0, operariosActivos - ocupados);
 
                 bool esPasado = (fecha < hoy) || (fecha == hoy && cursor <= ahora);
@@ -112,64 +120,77 @@ namespace ApiAutoLavado.Aplicacion.Services
                 throw new ReglaNegocioException($"El horario de atención es entre {HoraInicio:HH:mm} y {HoraFin:HH:mm}.");
             }
 
-            // RN-CL-01: Límite de capacidad por horario
+            // RN-CL-01 / RNF-04: la validación de cupo y la inserción son atómicas y serializables
+            // para impedir la sobreventa cuando dos clientes reservan la misma franja.
             var operariosActivos = _operarios.ObtenerTodos().Count(o => o.Activo);
             if (operariosActivos == 0) operariosActivos = 1;
 
-            var cuposOcupados = _reservas.ContarPorFechaYHora(request.FechaReserva, request.HoraReserva);
-            if (cuposOcupados >= operariosActivos)
+            using var transaccion = _transacciones.Iniciar();
+            try
             {
-                throw new ReglaNegocioException($"No hay cupos disponibles para la fecha {request.FechaReserva:yyyy-MM-dd} a las {request.HoraReserva:HH:mm}. Por favor elija otro horario.");
-            }
+                var cuposOcupados = _reservas.ContarPorFechaYHora(request.FechaReserva, request.HoraReserva, transaccion)
+                    + _turnos.ContarActivosPorFechaYHora(request.FechaReserva, request.HoraReserva, transaccion);
 
-            // Registrar o actualizar vehículo
-            var placaNormalizada = request.Placa.Trim().ToUpperInvariant();
-            var vehiculo = _vehiculos.ObtenerPorPlaca(placaNormalizada);
-
-            if (vehiculo == null)
-            {
-                vehiculo = new Vehiculo
+                if (cuposOcupados >= operariosActivos)
                 {
-                    Placa = placaNormalizada,
-                    TipoVehiculo = request.TipoVehiculo ?? TipoVehiculo.Auto,
-                    TelefonoCliente = !string.IsNullOrWhiteSpace(request.TelefonoCliente) ? request.TelefonoCliente.Trim() : "3000000000",
-                    FechaPrimerRegistro = DateTime.UtcNow
+                    throw new ReglaNegocioException($"No hay cupos disponibles para la fecha {request.FechaReserva:yyyy-MM-dd} a las {request.HoraReserva:HH:mm}. Por favor elija otro horario.");
+                }
+
+                // Registrar o actualizar vehículo
+                var placaNormalizada = request.Placa.Trim().ToUpperInvariant();
+                var vehiculo = _vehiculos.ObtenerPorPlaca(placaNormalizada, transaccion);
+
+                if (vehiculo == null)
+                {
+                    vehiculo = new Vehiculo
+                    {
+                        Placa = placaNormalizada,
+                        TipoVehiculo = request.TipoVehiculo ?? TipoVehiculo.Auto,
+                        TelefonoCliente = !string.IsNullOrWhiteSpace(request.TelefonoCliente) ? request.TelefonoCliente.Trim() : "3000000000",
+                        FechaPrimerRegistro = DateTime.UtcNow
+                    };
+                    _vehiculos.Crear(vehiculo, transaccion);
+                }
+                else if (!string.IsNullOrWhiteSpace(request.TelefonoCliente) || request.TipoVehiculo.HasValue)
+                {
+                    if (!string.IsNullOrWhiteSpace(request.TelefonoCliente))
+                        vehiculo.TelefonoCliente = request.TelefonoCliente.Trim();
+                    if (request.TipoVehiculo.HasValue)
+                        vehiculo.TipoVehiculo = request.TipoVehiculo.Value;
+
+                    _vehiculos.Actualizar(vehiculo, transaccion);
+                }
+
+                // Generar código único de reserva (ej: RES-4821)
+                var codigoReserva = GenerarCodigoUnico(transaccion);
+
+                var reserva = new Reserva
+                {
+                    CodigoReserva = codigoReserva,
+                    Placa = vehiculo.Placa,
+                    IdServicio = servicio.Id,
+                    FechaReserva = request.FechaReserva,
+                    HoraReserva = request.HoraReserva,
+                    Estado = "CONFIRMADA",
+                    FechaCreacion = DateTime.UtcNow,
+                    NombreServicio = servicio.Nombre,
+                    TarifaBase = servicio.PrecioBase,
+                    TiempoEstimadoMin = servicio.TiempoEstimadoMin,
+                    TipoVehiculo = vehiculo.TipoVehiculo.ToString(),
+                    TelefonoCliente = vehiculo.TelefonoCliente
                 };
-                _vehiculos.Crear(vehiculo);
+
+                var idGenerado = _reservas.Crear(reserva, transaccion);
+                reserva.IdReserva = idGenerado;
+
+                transaccion.Confirmar();
+                return reserva.ToResponse();
             }
-            else if (!string.IsNullOrWhiteSpace(request.TelefonoCliente) || request.TipoVehiculo.HasValue)
+            catch
             {
-                if (!string.IsNullOrWhiteSpace(request.TelefonoCliente))
-                    vehiculo.TelefonoCliente = request.TelefonoCliente.Trim();
-                if (request.TipoVehiculo.HasValue)
-                    vehiculo.TipoVehiculo = request.TipoVehiculo.Value;
-
-                _vehiculos.Actualizar(vehiculo);
+                transaccion.Revertir();
+                throw;
             }
-
-            // Generar código único de reserva (ej: RES-4821)
-            var codigoReserva = GenerarCodigoUnico();
-
-            var reserva = new Reserva
-            {
-                CodigoReserva = codigoReserva,
-                Placa = vehiculo.Placa,
-                IdServicio = servicio.Id,
-                FechaReserva = request.FechaReserva,
-                HoraReserva = request.HoraReserva,
-                Estado = "CONFIRMADA",
-                FechaCreacion = DateTime.UtcNow,
-                NombreServicio = servicio.Nombre,
-                TarifaBase = servicio.PrecioBase,
-                TiempoEstimadoMin = servicio.TiempoEstimadoMin,
-                TipoVehiculo = vehiculo.TipoVehiculo.ToString(),
-                TelefonoCliente = vehiculo.TelefonoCliente
-            };
-
-            var idGenerado = _reservas.Crear(reserva);
-            reserva.IdReserva = idGenerado;
-
-            return reserva.ToResponse();
         }
 
         public ReservaResponse ObtenerPorCodigo(string codigo)
@@ -181,14 +202,6 @@ namespace ApiAutoLavado.Aplicacion.Services
 
             var reserva = _reservas.ObtenerPorCodigo(codigo)
                 ?? throw new NoEncontradoException($"No se encontró ninguna reserva con el código {codigo.Trim().ToUpperInvariant()}.");
-
-            return reserva.ToResponse();
-        }
-
-        public ReservaResponse ObtenerPorId(long id)
-        {
-            var reserva = _reservas.ObtenerPorId(id)
-                ?? throw new NoEncontradoException($"No se encontró la reserva con ID {id}.");
 
             return reserva.ToResponse();
         }
@@ -253,13 +266,13 @@ namespace ApiAutoLavado.Aplicacion.Services
             return turnoCreado;
         }
 
-        private string GenerarCodigoUnico()
+        private string GenerarCodigoUnico(ITransaccionBd? transaccion = null)
         {
             for (int i = 0; i < 10; i++)
             {
                 var numero = RandomNumberGenerator.GetInt32(1000, 9999);
                 var codigo = $"RES-{numero}";
-                if (_reservas.ObtenerPorCodigo(codigo) == null)
+                if (_reservas.ObtenerPorCodigo(codigo, transaccion) == null)
                 {
                     return codigo;
                 }

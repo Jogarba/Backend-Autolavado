@@ -16,40 +16,51 @@ namespace ApiAutoLavado.Persistencia.Repositorios
             _fabricaConexion = fabricaConexion;
         }
 
-        public long Crear(Reserva reserva)
+        public long Crear(Reserva reserva, ITransaccionBd? transaccion = null)
         {
-            using var conexion = _fabricaConexion.Crear();
-            var sql = @"
-                INSERT INTO reservas (
-                    codigo_reserva, 
-                    placa, 
-                    id_servicio, 
-                    fecha_reserva, 
-                    hora_reserva, 
-                    estado, 
-                    fecha_creacion
-                ) 
-                VALUES (
-                    @CodigoReserva, 
-                    @Placa, 
-                    @IdServicio, 
-                    @FechaReserva, 
-                    @HoraReserva, 
-                    @Estado, 
-                    @FechaCreacion
-                );
-                SELECT LAST_INSERT_ID();";
+            var conexion = transaccion?.Conexion ?? _fabricaConexion.Crear();
 
-            return conexion.ExecuteScalar<long>(sql, new
+            try
             {
-                reserva.CodigoReserva,
-                reserva.Placa,
-                reserva.IdServicio,
-                FechaReserva = reserva.FechaReserva.ToDateTime(TimeOnly.MinValue),
-                HoraReserva = reserva.HoraReserva.ToTimeSpan(),
-                reserva.Estado,
-                reserva.FechaCreacion
-            });
+                var sql = @"
+                    INSERT INTO reservas (
+                        codigo_reserva, 
+                        placa, 
+                        id_servicio, 
+                        fecha_reserva, 
+                        hora_reserva, 
+                        estado, 
+                        fecha_creacion
+                    ) 
+                    VALUES (
+                        @CodigoReserva, 
+                        @Placa, 
+                        @IdServicio, 
+                        @FechaReserva, 
+                        @HoraReserva, 
+                        @Estado, 
+                        @FechaCreacion
+                    );
+                    SELECT LAST_INSERT_ID();";
+
+                return conexion.ExecuteScalar<long>(sql, new
+                {
+                    reserva.CodigoReserva,
+                    reserva.Placa,
+                    reserva.IdServicio,
+                    FechaReserva = reserva.FechaReserva.ToDateTime(TimeOnly.MinValue),
+                    HoraReserva = reserva.HoraReserva.ToTimeSpan(),
+                    reserva.Estado,
+                    reserva.FechaCreacion
+                }, transaccion?.Transaccion);
+            }
+            finally
+            {
+                if (transaccion is null)
+                {
+                    conexion.Dispose();
+                }
+            }
         }
 
         public Reserva? ObtenerPorId(long id)
@@ -79,31 +90,41 @@ namespace ApiAutoLavado.Persistencia.Repositorios
             return MapReserva(row);
         }
 
-        public Reserva? ObtenerPorCodigo(string codigo)
+        public Reserva? ObtenerPorCodigo(string codigo, ITransaccionBd? transaccion = null)
         {
-            using var conexion = _fabricaConexion.Crear();
-            var sql = @"
-                SELECT 
-                    r.id_reserva AS IdReserva,
-                    r.codigo_reserva AS CodigoReserva,
-                    r.placa AS Placa,
-                    r.id_servicio AS IdServicio,
-                    r.fecha_reserva AS FechaReservaRaw,
-                    r.hora_reserva AS HoraReservaRaw,
-                    r.estado AS Estado,
-                    r.fecha_creacion AS FechaCreacion,
-                    s.nombre AS NombreServicio,
-                    s.tarifa_base AS TarifaBase,
-                    s.tiempo_estimado_min AS TiempoEstimadoMin,
-                    v.tipo_vehiculo AS TipoVehiculo,
-                    v.telefono_cliente AS TelefonoCliente
-                FROM reservas r
-                INNER JOIN servicios s ON r.id_servicio = s.id_servicio
-                LEFT JOIN vehiculos v ON r.placa = v.placa
-                WHERE r.codigo_reserva = @Codigo";
+            var conexion = transaccion?.Conexion ?? _fabricaConexion.Crear();
+            try
+            {
+                var sql = @"
+                    SELECT 
+                        r.id_reserva AS IdReserva,
+                        r.codigo_reserva AS CodigoReserva,
+                        r.placa AS Placa,
+                        r.id_servicio AS IdServicio,
+                        r.fecha_reserva AS FechaReservaRaw,
+                        r.hora_reserva AS HoraReservaRaw,
+                        r.estado AS Estado,
+                        r.fecha_creacion AS FechaCreacion,
+                        s.nombre AS NombreServicio,
+                        s.tarifa_base AS TarifaBase,
+                        s.tiempo_estimado_min AS TiempoEstimadoMin,
+                        v.tipo_vehiculo AS TipoVehiculo,
+                        v.telefono_cliente AS TelefonoCliente
+                    FROM reservas r
+                    INNER JOIN servicios s ON r.id_servicio = s.id_servicio
+                    LEFT JOIN vehiculos v ON r.placa = v.placa
+                    WHERE r.codigo_reserva = @Codigo";
 
-            var row = conexion.QueryFirstOrDefault(sql, new { Codigo = codigo.Trim().ToUpperInvariant() });
-            return MapReserva(row);
+                var row = conexion.QueryFirstOrDefault(sql, new { Codigo = codigo.Trim().ToUpperInvariant() }, transaccion?.Transaccion);
+                return MapReserva(row);
+            }
+            finally
+            {
+                if (transaccion is null)
+                {
+                    conexion.Dispose();
+                }
+            }
         }
 
         public IReadOnlyCollection<Reserva> ObtenerPorFecha(DateOnly fecha)
@@ -189,21 +210,32 @@ namespace ApiAutoLavado.Persistencia.Repositorios
             return rows.Select(MapReserva).Where(r => r != null).Cast<Reserva>().ToList();
         }
 
-        public int ContarPorFechaYHora(DateOnly fecha, TimeOnly hora)
+        public int ContarPorFechaYHora(DateOnly fecha, TimeOnly hora, ITransaccionBd? transaccion = null)
         {
-            using var conexion = _fabricaConexion.Crear();
-            var sql = @"
-                SELECT COUNT(*) 
-                FROM reservas 
-                WHERE fecha_reserva = @Fecha 
-                  AND hora_reserva = @Hora 
-                  AND estado != 'CANCELADA'";
+            var conexion = transaccion?.Conexion ?? _fabricaConexion.Crear();
 
-            return conexion.ExecuteScalar<int>(sql, new
+            try
             {
-                Fecha = fecha.ToDateTime(TimeOnly.MinValue),
-                Hora = hora.ToTimeSpan()
-            });
+                var sql = @"
+                    SELECT COUNT(*) 
+                    FROM reservas 
+                    WHERE fecha_reserva = @Fecha 
+                      AND hora_reserva = @Hora 
+                      AND estado != 'CANCELADA'";
+
+                return conexion.ExecuteScalar<int>(sql, new
+                {
+                    Fecha = fecha.ToDateTime(TimeOnly.MinValue),
+                    Hora = hora.ToTimeSpan()
+                }, transaccion?.Transaccion);
+            }
+            finally
+            {
+                if (transaccion is null)
+                {
+                    conexion.Dispose();
+                }
+            }
         }
 
         public bool ActualizarEstado(long idReserva, string nuevoEstado)

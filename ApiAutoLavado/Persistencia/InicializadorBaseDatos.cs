@@ -39,6 +39,7 @@ namespace ApiAutoLavado.Persistencia
                 nombre VARCHAR(50) NOT NULL,
                 tarifa_base DECIMAL(10,2) NOT NULL,
                 tiempo_estimado_min INT NOT NULL,
+                fases VARCHAR(255) NOT NULL DEFAULT 'EN_COLA,ENJABONADO,ENJUAGADO,SECADO,LISTO',
                 PRIMARY KEY (id_servicio),
                 UNIQUE KEY nombre (nombre)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -111,6 +112,7 @@ namespace ApiAutoLavado.Persistencia
                     }
 
                     AsegurarColumnas(conexion);
+                    AsegurarFasesServicios(conexion);
                     SembrarUsuarioAdministrador(conexion);
                     SembrarOperarios(conexion);
                     SembrarServicios(conexion);
@@ -132,7 +134,35 @@ namespace ApiAutoLavado.Persistencia
             conexion.Execute(
                 "UPDATE operarios SET estado = 'DISPONIBLE' " +
                 "WHERE activo = 1 AND estado = 'OCUPADO' " +
-                "AND id_operario NOT IN (SELECT id_operario FROM turnos WHERE estado_actual = 'RECEPCION');");
+                "AND id_operario NOT IN (" +
+                "    SELECT id_operario FROM turnos " +
+                "    WHERE id_operario IS NOT NULL AND estado_actual NOT IN ('FINALIZADO', 'CANCELADO'));");
+        }
+
+        private static void AsegurarFasesServicios(IDbConnection conexion)
+        {
+            var existeFases = conexion.ExecuteScalar<long>(
+                "SELECT COUNT(*) FROM information_schema.COLUMNS " +
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'servicios' AND COLUMN_NAME = 'fases'");
+
+            if (existeFases == 0)
+            {
+                conexion.Execute(
+                    "ALTER TABLE servicios ADD COLUMN fases VARCHAR(255) NOT NULL DEFAULT '' AFTER tiempo_estimado_min");
+            }
+
+            // Backfill para bases existentes (RN-05): cada servicio recibe su secuencia de fases.
+            conexion.Execute(
+                """
+                UPDATE servicios SET fases = CASE nombre
+                    WHEN 'LAVADO_GENERAL' THEN 'EN_COLA,ENJABONADO,ENJUAGADO,SECADO,LISTO'
+                    WHEN 'POLICHADO'      THEN 'EN_COLA,ENJABONADO,ENJUAGADO,PULIDO,SECADO,LISTO'
+                    WHEN 'DETAILING'      THEN 'EN_COLA,ENJABONADO,ENJUAGADO,PULIDO,DESINFECCION,SECADO,LISTO'
+                    WHEN 'DESINFECCION'   THEN 'EN_COLA,DESINFECCION,SECADO,LISTO'
+                    ELSE 'EN_COLA,ENJABONADO,ENJUAGADO,SECADO,LISTO'
+                END
+                WHERE fases IS NULL OR fases = '';
+                """);
         }
 
         private static void AsegurarColumnas(IDbConnection conexion)
@@ -200,6 +230,9 @@ namespace ApiAutoLavado.Persistencia
                 return;
             }
 
+            var contrasena = Environment.GetEnvironmentVariable("OPERARIO_CONTRASENA") ?? "Operario123*";
+            var hash = BCrypt.Net.BCrypt.HashPassword(contrasena);
+
             var operarios = new[]
             {
                 new { Nombres = "Andrés", Apellidos = "Díaz", Documento = "1001004", Telefono = "3004444444", Activo = 1 },
@@ -208,10 +241,35 @@ namespace ApiAutoLavado.Persistencia
                 new { Nombres = "María", Apellidos = "Gómez", Documento = "1001002", Telefono = "3002222222", Activo = 1 }
             };
 
-            conexion.Execute(
-                "INSERT INTO operarios (nombres, apellidos, documento, telefono, activo) " +
-                "VALUES (@Nombres, @Apellidos, @Documento, @Telefono, @Activo)",
-                operarios);
+            foreach (var operario in operarios)
+            {
+                // Cada operario sembrado recibe credenciales para poder iniciar sesión (RF-03).
+                conexion.Execute(
+                    "INSERT INTO usuarios (nombre_usuario, contrasena_hash, rol, activo, fecha_creacion) " +
+                    "VALUES (@NombreUsuario, @ContrasenaHash, 'OPERARIO', @Activo, UTC_TIMESTAMP())",
+                    new
+                    {
+                        NombreUsuario = operario.Documento,
+                        ContrasenaHash = hash,
+                        operario.Activo
+                    });
+
+                var usuarioId = conexion.ExecuteScalar<int>("SELECT LAST_INSERT_ID()");
+
+                conexion.Execute(
+                    "INSERT INTO operarios (nombres, apellidos, documento, telefono, usuario_id, activo, estado) " +
+                    "VALUES (@Nombres, @Apellidos, @Documento, @Telefono, @UsuarioId, @Activo, @Estado)",
+                    new
+                    {
+                        operario.Nombres,
+                        operario.Apellidos,
+                        operario.Documento,
+                        operario.Telefono,
+                        UsuarioId = usuarioId,
+                        operario.Activo,
+                        Estado = operario.Activo == 1 ? "DISPONIBLE" : "INACTIVO"
+                    });
+            }
         }
 
         private static void SembrarServicios(IDbConnection conexion)
@@ -223,15 +281,39 @@ namespace ApiAutoLavado.Persistencia
 
             var servicios = new[]
             {
-                new { Nombre = "LAVADO_GENERAL", Tarifa = 15_000m, Tiempo = 30 },
-                new { Nombre = "POLICHADO", Tarifa = 80_000m, Tiempo = 120 },
-                new { Nombre = "DETAILING", Tarifa = 150_000m, Tiempo = 240 },
-                new { Nombre = "DESINFECCION", Tarifa = 40_000m, Tiempo = 45 }
+                new
+                {
+                    Nombre = "LAVADO_GENERAL",
+                    Tarifa = 15_000m,
+                    Tiempo = 30,
+                    Fases = "EN_COLA,ENJABONADO,ENJUAGADO,SECADO,LISTO"
+                },
+                new
+                {
+                    Nombre = "POLICHADO",
+                    Tarifa = 80_000m,
+                    Tiempo = 120,
+                    Fases = "EN_COLA,ENJABONADO,ENJUAGADO,PULIDO,SECADO,LISTO"
+                },
+                new
+                {
+                    Nombre = "DETAILING",
+                    Tarifa = 150_000m,
+                    Tiempo = 240,
+                    Fases = "EN_COLA,ENJABONADO,ENJUAGADO,PULIDO,DESINFECCION,SECADO,LISTO"
+                },
+                new
+                {
+                    Nombre = "DESINFECCION",
+                    Tarifa = 40_000m,
+                    Tiempo = 45,
+                    Fases = "EN_COLA,DESINFECCION,SECADO,LISTO"
+                }
             };
 
             conexion.Execute(
-                "INSERT INTO servicios (nombre, tarifa_base, tiempo_estimado_min) " +
-                "VALUES (@Nombre, @Tarifa, @Tiempo)",
+                "INSERT INTO servicios (nombre, tarifa_base, tiempo_estimado_min, fases) " +
+                "VALUES (@Nombre, @Tarifa, @Tiempo, @Fases)",
                 servicios);
         }
     }

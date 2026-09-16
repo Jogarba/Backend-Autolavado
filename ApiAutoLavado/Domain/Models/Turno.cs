@@ -1,5 +1,3 @@
-using ApiAutoLavado.Domain.Enums;
-
 namespace ApiAutoLavado.Domain.Models
 {
     public class Turno

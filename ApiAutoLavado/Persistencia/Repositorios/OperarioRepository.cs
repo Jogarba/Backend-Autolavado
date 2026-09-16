@@ -133,33 +133,84 @@ namespace ApiAutoLavado.Persistencia.Repositorios
             }
         }
 
-        public bool IntentarOcupar(int id)
+        public bool CambiarEstado(int id, EstadoOperario estado, ITransaccionBd? transaccion = null)
         {
-            using var conexion = _fabrica.Crear();
-            var afectadas = conexion.Execute(
-                "UPDATE operarios SET estado = @Ocupado WHERE id_operario = @Id AND estado = @Disponible",
-                new
-                {
-                    Id = id,
-                    Ocupado = EstadoOperario.Ocupado.ANombreBd(),
-                    Disponible = EstadoOperario.Disponible.ANombreBd()
-                });
+            var conexion = transaccion?.Conexion ?? _fabrica.Crear();
 
-            return afectadas > 0;
+            try
+            {
+                var afectadas = conexion.Execute(
+                    "UPDATE operarios SET estado = @Estado, activo = @Activo WHERE id_operario = @Id",
+                    new
+                    {
+                        Id = id,
+                        Estado = estado.ANombreBd(),
+                        Activo = estado == EstadoOperario.Inactivo ? 0 : 1
+                    },
+                    transaccion?.Transaccion);
+
+                return afectadas > 0;
+            }
+            finally
+            {
+                if (transaccion is null)
+                {
+                    conexion.Dispose();
+                }
+            }
         }
 
-        public bool Liberar(int id)
+        public bool IntentarOcupar(int id, ITransaccionBd? transaccion = null)
         {
-            using var conexion = _fabrica.Crear();
-            var afectadas = conexion.Execute(
-                "UPDATE operarios SET estado = @Disponible WHERE id_operario = @Id",
-                new
-                {
-                    Id = id,
-                    Disponible = EstadoOperario.Disponible.ANombreBd()
-                });
+            var conexion = transaccion?.Conexion ?? _fabrica.Crear();
 
-            return afectadas > 0;
+            try
+            {
+                var afectadas = conexion.Execute(
+                    "UPDATE operarios SET estado = @Ocupado WHERE id_operario = @Id AND estado = @Disponible",
+                    new
+                    {
+                        Id = id,
+                        Ocupado = EstadoOperario.Ocupado.ANombreBd(),
+                        Disponible = EstadoOperario.Disponible.ANombreBd()
+                    },
+                    transaccion?.Transaccion);
+
+                return afectadas > 0;
+            }
+            finally
+            {
+                if (transaccion is null)
+                {
+                    conexion.Dispose();
+                }
+            }
+        }
+
+        public bool Liberar(int id, ITransaccionBd? transaccion = null)
+        {
+            var conexion = transaccion?.Conexion ?? _fabrica.Crear();
+
+            try
+            {
+                var afectadas = conexion.Execute(
+                    "UPDATE operarios SET estado = @Disponible WHERE id_operario = @Id AND estado = @Ocupado",
+                    new
+                    {
+                        Id = id,
+                        Disponible = EstadoOperario.Disponible.ANombreBd()
+                    },
+                    transaccion?.Transaccion);
+
+                return afectadas > 0;
+            }
+            finally
+            {
+                if (transaccion is null)
+                {
+                    conexion.Dispose();
+                }
+            }
         }
     }
 }

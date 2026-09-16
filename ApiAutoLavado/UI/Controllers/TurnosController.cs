@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ApiAutoLavado.Aplicacion.Dtos;
@@ -10,6 +11,11 @@ namespace ApiAutoLavado.UI.Controllers
     [Authorize]
     public class TurnosController : ControllerBase
     {
+        private static readonly JsonSerializerOptions OpcionesJson = new()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+        };
+
         private readonly ITurnoService _turnoService;
 
         public TurnosController(ITurnoService turnoService)
@@ -23,6 +29,12 @@ namespace ApiAutoLavado.UI.Controllers
             return Ok(_turnoService.ObtenerActivos());
         }
 
+        [HttpGet("tablero")]
+        public ActionResult<TableroTurnosResponse> ObtenerTablero()
+        {
+            return Ok(_turnoService.ObtenerTablero());
+        }
+
         [HttpPost]
         public ActionResult<TurnoCreadoResponse> Crear([FromBody] CrearTurnoRequest request)
         {
@@ -32,9 +44,10 @@ namespace ApiAutoLavado.UI.Controllers
 
         [HttpGet("trazabilidad/{identificador}")]
         [AllowAnonymous]
-        public ActionResult<TrazabilidadTurnoResponse> ObtenerTrazabilidad(string identificador)
+        public ActionResult<TrazabilidadPublicaResponse> ObtenerTrazabilidad(string identificador)
         {
-            var response = _turnoService.ObtenerTrazabilidad(identificador);
+            // RNF-05: la consulta pública no expone teléfono, tarifas ni apellidos.
+            var response = _turnoService.ObtenerTrazabilidad(identificador).ToPublica();
             return Ok(response);
         }
 
@@ -48,8 +61,8 @@ namespace ApiAutoLavado.UI.Controllers
 
             try
             {
-                var trazabilidadInicial = _turnoService.ObtenerTrazabilidad(identificador);
-                var jsonInicial = System.Text.Json.JsonSerializer.Serialize(trazabilidadInicial);
+                var trazabilidadInicial = _turnoService.ObtenerTrazabilidad(identificador).ToPublica();
+                var jsonInicial = JsonSerializer.Serialize(trazabilidadInicial, OpcionesJson);
                 await Response.WriteAsync($"data: {jsonInicial}\n\n", cancellationToken);
                 await Response.Body.FlushAsync(cancellationToken);
 
@@ -58,8 +71,8 @@ namespace ApiAutoLavado.UI.Controllers
                     await Task.Delay(2000, cancellationToken);
                     try
                     {
-                        var trazabilidad = _turnoService.ObtenerTrazabilidad(identificador);
-                        var json = System.Text.Json.JsonSerializer.Serialize(trazabilidad);
+                        var trazabilidad = _turnoService.ObtenerTrazabilidad(identificador).ToPublica();
+                        var json = JsonSerializer.Serialize(trazabilidad, OpcionesJson);
                         await Response.WriteAsync($"data: {json}\n\n", cancellationToken);
                         await Response.Body.FlushAsync(cancellationToken);
                     }
