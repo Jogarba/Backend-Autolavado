@@ -15,10 +15,28 @@ namespace ApiAutoLavado.UI.Controllers
             _operarioService = operarioService;
         }
 
+        [HttpGet]
+        public ActionResult<IEnumerable<OperarioResponse>> ObtenerTodos()
+        {
+            return Ok(_operarioService.ObtenerTodos());
+        }
+
         [HttpGet("activos")]
         public ActionResult<IEnumerable<OperarioResponse>> ObtenerActivos()
         {
             return Ok(_operarioService.ObtenerActivos());
+        }
+
+        [HttpGet("inactivos")]
+        public ActionResult<IEnumerable<OperarioResponse>> ObtenerInactivos()
+        {
+            return Ok(_operarioService.ObtenerInactivos());
+        }
+
+        [HttpGet("ocupados")]
+        public ActionResult<IEnumerable<OperarioResponse>> ObtenerOcupados()
+        {
+            return Ok(_operarioService.ObtenerOcupados());
         }
 
         [HttpPost]

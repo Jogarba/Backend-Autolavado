@@ -1,5 +1,6 @@
 using ApiAutoLavado.Aplicacion.Dtos;
 using ApiAutoLavado.Aplicacion.Repositorios;
+using ApiAutoLavado.Domain.Enums;
 using ApiAutoLavado.Domain.Exceptions;
 using ApiAutoLavado.Domain.Models;
 
@@ -14,10 +15,36 @@ namespace ApiAutoLavado.Aplicacion.Services
             _operarios = operarios;
         }
 
+        public IReadOnlyCollection<OperarioResponse> ObtenerTodos()
+        {
+            return _operarios.ObtenerTodos()
+                .OrderBy(o => o.Nombres)
+                .Select(o => o.ToResponse())
+                .ToList();
+        }
+
         public IReadOnlyCollection<OperarioResponse> ObtenerActivos()
         {
             return _operarios.ObtenerTodos()
                 .Where(o => o.EstaDisponible)
+                .OrderBy(o => o.Nombres)
+                .Select(o => o.ToResponse())
+                .ToList();
+        }
+
+        public IReadOnlyCollection<OperarioResponse> ObtenerInactivos()
+        {
+            return _operarios.ObtenerTodos()
+                .Where(o => !o.Activo)
+                .OrderBy(o => o.Nombres)
+                .Select(o => o.ToResponse())
+                .ToList();
+        }
+
+        public IReadOnlyCollection<OperarioResponse> ObtenerOcupados()
+        {
+            return _operarios.ObtenerTodos()
+                .Where(o => o.Estado == EstadoOperario.Ocupado)
                 .OrderBy(o => o.Nombres)
                 .Select(o => o.ToResponse())
                 .ToList();
