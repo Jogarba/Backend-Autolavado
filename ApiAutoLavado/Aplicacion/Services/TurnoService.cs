@@ -239,7 +239,7 @@ namespace ApiAutoLavado.Aplicacion.Services
             var servicio = _servicios.ObtenerPorId(turno.IdServicio);
             var operario = turno.IdOperario.HasValue ? _operarios.ObtenerPorId(turno.IdOperario.Value) : null;
 
-            var estado = turno.EstadoActual.ToUpperInvariant();
+            var estado = (turno.EstadoActual ?? "EN_COLA").ToUpperInvariant();
             int porcentaje = 15;
             string mensaje = "Tu vehículo está en espera de turno en patio.";
             bool listo = false;

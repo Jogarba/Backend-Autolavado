@@ -221,21 +221,45 @@ namespace ApiAutoLavado.Persistencia.Repositorios
         {
             if (row == null) return null;
 
-            DateOnly fecha;
+            DateOnly fecha = DateOnly.FromDateTime(DateTime.Today);
             if (row.FechaReservaRaw is DateTime dt)
+            {
                 fecha = DateOnly.FromDateTime(dt);
+            }
             else if (row.FechaReservaRaw is DateOnly d)
+            {
                 fecha = d;
-            else
-                fecha = DateOnly.Parse(row.FechaReservaRaw.ToString());
+            }
+            else if (row.FechaReservaRaw != null)
+            {
+                string strFecha = row.FechaReservaRaw.ToString();
+                if (DateTime.TryParse(strFecha, out DateTime dtParsed))
+                    fecha = DateOnly.FromDateTime(dtParsed);
+                else if (DateOnly.TryParse(strFecha, out DateOnly dParsed))
+                    fecha = dParsed;
+            }
 
-            TimeOnly hora;
+            TimeOnly hora = TimeOnly.MinValue;
             if (row.HoraReservaRaw is TimeSpan ts)
+            {
                 hora = TimeOnly.FromTimeSpan(ts);
+            }
             else if (row.HoraReservaRaw is TimeOnly t)
+            {
                 hora = t;
-            else
-                hora = TimeOnly.Parse(row.HoraReservaRaw.ToString());
+            }
+            else if (row.HoraReservaRaw is DateTime dtH)
+            {
+                hora = TimeOnly.FromDateTime(dtH);
+            }
+            else if (row.HoraReservaRaw != null)
+            {
+                string strHora = row.HoraReservaRaw.ToString();
+                if (TimeSpan.TryParse(strHora, out TimeSpan tsParsed))
+                    hora = TimeOnly.FromTimeSpan(tsParsed);
+                else if (TimeOnly.TryParse(strHora, out TimeOnly tParsed))
+                    hora = tParsed;
+            }
 
             return new Reserva
             {
