@@ -13,5 +13,9 @@ namespace ApiAutoLavado.Aplicacion.Services
         IReadOnlyCollection<OperarioResponse> ObtenerOcupados();
 
         OperarioResponse Crear(CrearOperarioRequest request);
+
+        OperarioResponse Editar(int id, EditarOperarioRequest request);
+
+        OperarioResponse Desactivar(int id);
     }
 }

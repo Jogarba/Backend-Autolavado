@@ -14,9 +14,15 @@ namespace ApiAutoLavado.Domain.Models
 
         public required string Telefono { get; set; }
 
+        public int? UsuarioId { get; set; }
+
+        public string? NombreUsuario { get; set; }
+
         public bool Activo { get; set; } = true;
 
         public EstadoOperario Estado { get; set; } = EstadoOperario.Disponible;
+
+        public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
 
         public bool EstaDisponible => Activo && Estado == EstadoOperario.Disponible;
     }

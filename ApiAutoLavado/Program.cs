@@ -1,8 +1,12 @@
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
+using ApiAutoLavado.Aplicacion.Configuracion;
 using ApiAutoLavado.Aplicacion.Repositorios;
 using ApiAutoLavado.Aplicacion.Services;
 using ApiAutoLavado.Persistencia;
@@ -56,17 +60,56 @@ var cadenaConexion = ConstructorConexion.NormalizarMySql(
         "No se encontró la variable CONECTION_STRING. Defínala en el archivo .env en la raíz del proyecto."));
 
 builder.Services.AddSingleton<IFabricaConexion>(_ => new FabricaConexionMySql(cadenaConexion));
+builder.Services.AddSingleton<IFabricaTransacciones, FabricaTransaccionesMySql>();
 builder.Services.AddSingleton<InicializadorBaseDatos>();
 builder.Services.AddSingleton<IBahiaRepository, BahiaRepository>();
 builder.Services.AddSingleton<IOperarioRepository, OperarioRepository>();
 builder.Services.AddSingleton<IServicioRepository, ServicioRepository>();
 builder.Services.AddSingleton<ITurnoRepository, TurnoRepository>();
+builder.Services.AddSingleton<IUsuarioRepository, UsuarioRepository>();
+
+// Configuración de autenticación JWT (roles en claims)
+var jwtOpciones = new JwtOpciones
+{
+    Key = Environment.GetEnvironmentVariable("JWT_KEY")
+        ?? throw new InvalidOperationException(
+            "No se encontró la variable JWT_KEY. Defínala en el archivo .env en la raíz del proyecto."),
+    Issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "ApiAutoLavado",
+    Audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "ApiAutoLavadoClientes",
+    ExpiracionMinutos = int.TryParse(
+        Environment.GetEnvironmentVariable("JWT_EXPIRACION_MINUTOS"), out var minutosJwt) ? minutosJwt : 60
+};
+
+builder.Services.AddSingleton(jwtOpciones);
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwtOpciones.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwtOpciones.Audience,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOpciones.Key)),
+            ClockSkew = TimeSpan.Zero,
+            RoleClaimType = "role",
+            NameClaimType = "unique_name"
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 // Capa de aplicación (casos de uso)
+builder.Services.AddSingleton<IAuthService, AuthService>();
 builder.Services.AddSingleton<IBahiaService, BahiaService>();
 builder.Services.AddSingleton<IOperarioService, OperarioService>();
 builder.Services.AddSingleton<IServicioService, ServicioService>();
 builder.Services.AddSingleton<ITurnoService, TurnoService>();
+builder.Services.AddSingleton<IUsuarioService, UsuarioService>();
 
 // Documentación OpenAPI
 builder.Services.AddOpenApi(options =>
@@ -124,6 +167,7 @@ app.MapGet("/", () => Results.Ok(new
     docs = "/scalar/v1"
 }));
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

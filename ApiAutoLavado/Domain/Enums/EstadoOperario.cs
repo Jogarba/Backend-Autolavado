@@ -8,6 +8,9 @@ namespace ApiAutoLavado.Domain.Enums
         Disponible,
 
         [JsonStringEnumMemberName("OCUPADO")]
-        Ocupado
+        Ocupado,
+
+        [JsonStringEnumMemberName("INACTIVO")]
+        Inactivo
     }
 }

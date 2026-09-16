@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ApiAutoLavado.Aplicacion.Dtos;
 using ApiAutoLavado.Aplicacion.Services;
@@ -6,6 +7,7 @@ namespace ApiAutoLavado.UI.Controllers
 {
     [ApiController]
     [Route("api/v1/servicios")]
+    [Authorize]
     public class ServiciosController : ControllerBase
     {
         private readonly IServicioService _servicioService;

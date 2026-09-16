@@ -14,8 +14,12 @@ namespace ApiAutoLavado.Aplicacion.Dtos
 
         public required string Telefono { get; set; }
 
+        public string? NombreUsuario { get; set; }
+
         public bool Activo { get; set; }
 
         public EstadoOperario Estado { get; set; }
+
+        public DateTime FechaCreacion { get; set; }
     }
 }

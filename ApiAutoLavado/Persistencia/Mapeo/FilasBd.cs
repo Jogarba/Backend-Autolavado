@@ -34,9 +34,15 @@ namespace ApiAutoLavado.Persistencia.Mapeo
 
         public string Telefono { get; set; } = string.Empty;
 
+        public int? UsuarioId { get; set; }
+
+        public string? NombreUsuario { get; set; }
+
         public bool Activo { get; set; }
 
         public string Estado { get; set; } = string.Empty;
+
+        public DateTime FechaCreacion { get; set; }
 
         public Operario AModelo() => new()
         {
@@ -45,8 +51,36 @@ namespace ApiAutoLavado.Persistencia.Mapeo
             Apellidos = Apellidos,
             Documento = Documento,
             Telefono = Telefono,
+            UsuarioId = UsuarioId,
+            NombreUsuario = NombreUsuario,
             Activo = Activo,
-            Estado = Enum.Parse<EstadoOperario>(Estado, ignoreCase: true)
+            Estado = Enum.Parse<EstadoOperario>(Estado, ignoreCase: true),
+            FechaCreacion = FechaCreacion
+        };
+    }
+
+    internal sealed class UsuarioFila
+    {
+        public int Id { get; set; }
+
+        public string NombreUsuario { get; set; } = string.Empty;
+
+        public string ContrasenaHash { get; set; } = string.Empty;
+
+        public string Rol { get; set; } = string.Empty;
+
+        public bool Activo { get; set; }
+
+        public DateTime FechaCreacion { get; set; }
+
+        public Usuario AModelo() => new()
+        {
+            Id = Id,
+            NombreUsuario = NombreUsuario,
+            ContrasenaHash = ContrasenaHash,
+            Rol = Enum.Parse<RolUsuario>(Rol, ignoreCase: true),
+            Activo = Activo,
+            FechaCreacion = FechaCreacion
         };
     }
 

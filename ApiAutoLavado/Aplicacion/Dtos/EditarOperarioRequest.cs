@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ApiAutoLavado.Aplicacion.Dtos
 {
-    public class CrearOperarioRequest
+    public class EditarOperarioRequest
     {
         [Required]
         [StringLength(100, MinimumLength = 1)]
@@ -20,15 +20,5 @@ namespace ApiAutoLavado.Aplicacion.Dtos
         [StringLength(10)]
         [RegularExpression("^[0-9]+$", ErrorMessage = "El teléfono solo debe contener números.")]
         public required string Telefono { get; set; }
-
-        [Required]
-        [StringLength(60, MinimumLength = 3)]
-        public required string NombreUsuario { get; set; }
-
-        [Required]
-        [StringLength(100, MinimumLength = 6)]
-        public required string Contrasena { get; set; }
-
-        public bool Activo { get; set; } = true;
     }
 }

@@ -8,7 +8,11 @@ namespace ApiAutoLavado.Aplicacion.Repositorios
 
         Operario? ObtenerPorId(int id);
 
-        int? IntentarAgregar(Operario operario);
+        int? IntentarAgregar(Operario operario, ITransaccionBd? transaccion = null);
+
+        bool Actualizar(Operario operario);
+
+        bool Desactivar(int id, ITransaccionBd? transaccion = null);
 
         bool IntentarOcupar(int id);
 

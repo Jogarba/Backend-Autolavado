@@ -16,16 +16,31 @@ namespace ApiAutoLavado.Persistencia
                 UNIQUE KEY nombre_bahia (nombre_bahia)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id_usuario INT NOT NULL AUTO_INCREMENT,
+                nombre_usuario VARCHAR(60) NOT NULL,
+                contrasena_hash VARCHAR(100) NOT NULL,
+                rol VARCHAR(20) NOT NULL,
+                activo TINYINT(1) NOT NULL DEFAULT 1,
+                fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id_usuario),
+                UNIQUE KEY nombre_usuario (nombre_usuario)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
             CREATE TABLE IF NOT EXISTS operarios (
                 id_operario INT NOT NULL AUTO_INCREMENT,
                 nombres VARCHAR(60) NOT NULL,
                 apellidos VARCHAR(60) NOT NULL,
                 documento VARCHAR(15) NOT NULL,
                 telefono VARCHAR(10) NOT NULL,
+                usuario_id INT NULL,
                 activo TINYINT(1) NOT NULL DEFAULT 1,
                 estado VARCHAR(20) NOT NULL DEFAULT 'DISPONIBLE',
+                fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id_operario),
-                UNIQUE KEY documento (documento)
+                UNIQUE KEY documento (documento),
+                UNIQUE KEY uq_operarios_usuario (usuario_id),
+                CONSTRAINT fk_operarios_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios (id_usuario)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
             CREATE TABLE IF NOT EXISTS servicios (
@@ -80,6 +95,7 @@ namespace ApiAutoLavado.Persistencia
 
             AsegurarColumnas(conexion);
             SembrarBahias(conexion);
+            SembrarUsuarioAdministrador(conexion);
             SembrarOperarios(conexion);
             SembrarServicios(conexion);
         }
@@ -95,6 +111,49 @@ namespace ApiAutoLavado.Persistencia
                 conexion.Execute(
                     "ALTER TABLE operarios ADD COLUMN estado VARCHAR(20) NOT NULL DEFAULT 'DISPONIBLE' AFTER activo");
             }
+
+            var existeUsuarioId = conexion.ExecuteScalar<long>(
+                "SELECT COUNT(*) FROM information_schema.COLUMNS " +
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'operarios' AND COLUMN_NAME = 'usuario_id'");
+
+            if (existeUsuarioId == 0)
+            {
+                conexion.Execute("ALTER TABLE operarios ADD COLUMN usuario_id INT NULL AFTER telefono");
+                conexion.Execute("ALTER TABLE operarios ADD UNIQUE KEY uq_operarios_usuario (usuario_id)");
+                conexion.Execute(
+                    "ALTER TABLE operarios ADD CONSTRAINT fk_operarios_usuario " +
+                    "FOREIGN KEY (usuario_id) REFERENCES usuarios (id_usuario)");
+            }
+
+            var existeFechaCreacion = conexion.ExecuteScalar<long>(
+                "SELECT COUNT(*) FROM information_schema.COLUMNS " +
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'operarios' AND COLUMN_NAME = 'fecha_creacion'");
+
+            if (existeFechaCreacion == 0)
+            {
+                conexion.Execute(
+                    "ALTER TABLE operarios ADD COLUMN fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+            }
+        }
+
+        private static void SembrarUsuarioAdministrador(IDbConnection conexion)
+        {
+            if (conexion.ExecuteScalar<long>("SELECT COUNT(*) FROM usuarios") > 0)
+            {
+                return;
+            }
+
+            var nombreUsuario = Environment.GetEnvironmentVariable("ADMIN_USUARIO") ?? "admin";
+            var contrasena = Environment.GetEnvironmentVariable("ADMIN_CONTRASENA") ?? "Admin123*";
+
+            conexion.Execute(
+                "INSERT INTO usuarios (nombre_usuario, contrasena_hash, rol, activo, fecha_creacion) " +
+                "VALUES (@NombreUsuario, @ContrasenaHash, 'ADMINISTRADOR', 1, UTC_TIMESTAMP())",
+                new
+                {
+                    NombreUsuario = nombreUsuario,
+                    ContrasenaHash = BCrypt.Net.BCrypt.HashPassword(contrasena)
+                });
         }
 
         private static void SembrarBahias(IDbConnection conexion)

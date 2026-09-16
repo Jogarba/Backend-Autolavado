@@ -10,8 +10,11 @@ namespace ApiAutoLavado.Persistencia.Repositorios
     internal sealed class OperarioRepository : IOperarioRepository
     {
         private const string Columnas =
-            "id_operario AS Id, nombres AS Nombres, apellidos AS Apellidos, documento AS Documento, " +
-            "telefono AS Telefono, activo AS Activo, estado AS Estado";
+            "o.id_operario AS Id, o.nombres AS Nombres, o.apellidos AS Apellidos, o.documento AS Documento, " +
+            "o.telefono AS Telefono, o.usuario_id AS UsuarioId, u.nombre_usuario AS NombreUsuario, " +
+            "o.activo AS Activo, o.estado AS Estado, o.fecha_creacion AS FechaCreacion";
+
+        private const string Origen = "operarios o LEFT JOIN usuarios u ON u.id_usuario = o.usuario_id";
 
         private readonly IFabricaConexion _fabrica;
 
@@ -23,7 +26,7 @@ namespace ApiAutoLavado.Persistencia.Repositorios
         public IReadOnlyCollection<Operario> ObtenerTodos()
         {
             using var conexion = _fabrica.Crear();
-            var filas = conexion.Query<OperarioFila>($"SELECT {Columnas} FROM operarios");
+            var filas = conexion.Query<OperarioFila>($"SELECT {Columnas} FROM {Origen}");
             return filas.Select(f => f.AModelo()).ToList();
         }
 
@@ -31,38 +34,102 @@ namespace ApiAutoLavado.Persistencia.Repositorios
         {
             using var conexion = _fabrica.Crear();
             var fila = conexion.QuerySingleOrDefault<OperarioFila>(
-                $"SELECT {Columnas} FROM operarios WHERE id_operario = @Id",
+                $"SELECT {Columnas} FROM {Origen} WHERE o.id_operario = @Id",
                 new { Id = id });
 
             return fila?.AModelo();
         }
 
-        public int? IntentarAgregar(Operario operario)
+        public int? IntentarAgregar(Operario operario, ITransaccionBd? transaccion = null)
         {
-            using var conexion = _fabrica.Crear();
-            conexion.Open();
+            var conexion = transaccion?.Conexion ?? _fabrica.Crear();
 
             try
             {
                 conexion.Execute(
-                    "INSERT INTO operarios (nombres, apellidos, documento, telefono, activo, estado) " +
-                    "VALUES (@Nombres, @Apellidos, @Documento, @Telefono, @Activo, @Estado)",
+                    "INSERT INTO operarios (nombres, apellidos, documento, telefono, usuario_id, activo, estado, fecha_creacion) " +
+                    "VALUES (@Nombres, @Apellidos, @Documento, @Telefono, @UsuarioId, @Activo, @Estado, @FechaCreacion)",
                     new
                     {
                         operario.Nombres,
                         operario.Apellidos,
                         operario.Documento,
                         operario.Telefono,
+                        operario.UsuarioId,
                         Activo = operario.Activo ? 1 : 0,
-                        Estado = operario.Estado.ANombreBd()
+                        Estado = operario.Estado.ANombreBd(),
+                        operario.FechaCreacion
+                    },
+                    transaccion?.Transaccion);
+
+                return conexion.ExecuteScalar<int>(
+                    "SELECT LAST_INSERT_ID()",
+                    transaction: transaccion?.Transaccion);
+            }
+            catch (MySqlException ex) when (ex.Number == 1062)
+            {
+                // Documento o usuario_id duplicado (índices únicos)
+                return null;
+            }
+            finally
+            {
+                if (transaccion is null)
+                {
+                    conexion.Dispose();
+                }
+            }
+        }
+
+        public bool Actualizar(Operario operario)
+        {
+            using var conexion = _fabrica.Crear();
+
+            try
+            {
+                var afectadas = conexion.Execute(
+                    "UPDATE operarios SET nombres = @Nombres, apellidos = @Apellidos, documento = @Documento, " +
+                    "telefono = @Telefono WHERE id_operario = @Id",
+                    new
+                    {
+                        operario.Id,
+                        operario.Nombres,
+                        operario.Apellidos,
+                        operario.Documento,
+                        operario.Telefono
                     });
 
-                return conexion.ExecuteScalar<int>("SELECT LAST_INSERT_ID()");
+                return afectadas > 0;
             }
             catch (MySqlException ex) when (ex.Number == 1062)
             {
                 // Documento duplicado (índice único)
-                return null;
+                return false;
+            }
+        }
+
+        public bool Desactivar(int id, ITransaccionBd? transaccion = null)
+        {
+            var conexion = transaccion?.Conexion ?? _fabrica.Crear();
+
+            try
+            {
+                var afectadas = conexion.Execute(
+                    "UPDATE operarios SET activo = 0, estado = @Inactivo WHERE id_operario = @Id",
+                    new
+                    {
+                        Id = id,
+                        Inactivo = EstadoOperario.Inactivo.ANombreBd()
+                    },
+                    transaccion?.Transaccion);
+
+                return afectadas > 0;
+            }
+            finally
+            {
+                if (transaccion is null)
+                {
+                    conexion.Dispose();
+                }
             }
         }
 

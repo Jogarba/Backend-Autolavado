@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ApiAutoLavado")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8082cf2b9bb30fbf6df675233d7955a6b4325e2b")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+261145551f99c4fb073314a8ff6dd63fa2457b83")]
 [assembly: System.Reflection.AssemblyProductAttribute("ApiAutoLavado")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ApiAutoLavado")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

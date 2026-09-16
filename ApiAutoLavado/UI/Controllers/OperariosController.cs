@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ApiAutoLavado.Aplicacion.Dtos;
 using ApiAutoLavado.Aplicacion.Services;
@@ -6,6 +7,7 @@ namespace ApiAutoLavado.UI.Controllers
 {
     [ApiController]
     [Route("api/v1/operarios")]
+    [Authorize(Roles = "Administrador")]
     public class OperariosController : ControllerBase
     {
         private readonly IOperarioService _operarioService;
@@ -17,7 +19,7 @@ namespace ApiAutoLavado.UI.Controllers
 
         [HttpGet]
         public ActionResult<IEnumerable<OperarioResponse>> ObtenerTodos()
-        {
+        {   
             return Ok(_operarioService.ObtenerTodos());
         }
 
@@ -44,6 +46,18 @@ namespace ApiAutoLavado.UI.Controllers
         {
             var operario = _operarioService.Crear(request);
             return StatusCode(StatusCodes.Status201Created, operario);
+        }
+
+        [HttpPut("{id:int}")]
+        public ActionResult<OperarioResponse> Editar(int id, [FromBody] EditarOperarioRequest request)
+        {
+            return Ok(_operarioService.Editar(id, request));
+        }
+
+        [HttpPatch("{id:int}/desactivar")]
+        public ActionResult<OperarioResponse> Desactivar(int id)
+        {
+            return Ok(_operarioService.Desactivar(id));
         }
     }
 }
