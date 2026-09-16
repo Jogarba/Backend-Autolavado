@@ -98,6 +98,18 @@ namespace ApiAutoLavado.Persistencia
             SembrarUsuarioAdministrador(conexion);
             SembrarOperarios(conexion);
             SembrarServicios(conexion);
+            SincronizarEstadosHuerfanos(conexion);
+        }
+
+        private static void SincronizarEstadosHuerfanos(IDbConnection conexion)
+        {
+            conexion.Execute(
+                "UPDATE operarios SET estado = 'DISPONIBLE' " +
+                "WHERE activo = 1 AND estado = 'OCUPADO' " +
+                "AND id_operario NOT IN (SELECT id_operario FROM turnos WHERE estado_actual = 'RECEPCION'); " +
+                "UPDATE bahias SET estado = 'DISPONIBLE' " +
+                "WHERE estado = 'OCUPADA' " +
+                "AND id_bahia NOT IN (SELECT id_bahia FROM turnos WHERE estado_actual = 'RECEPCION');");
         }
 
         private static void AsegurarColumnas(IDbConnection conexion)

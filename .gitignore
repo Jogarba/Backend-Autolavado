@@ -1,5 +1,13 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+**/bin/
+**/obj/
+
+# Visual Studio
 .vs/
-bin/
-obj/
 *.user
+*.suo
+
+# Environment variables
 .env
