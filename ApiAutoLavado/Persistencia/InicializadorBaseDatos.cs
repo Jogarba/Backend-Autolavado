@@ -96,20 +96,35 @@ namespace ApiAutoLavado.Persistencia
 
         public void Inicializar()
         {
-            using var conexion = _fabrica.Crear();
-
-            foreach (var sentencia in Esquema.Split(
-                         ';',
-                         StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            const int maxIntentos = 5;
+            for (int intento = 1; intento <= maxIntentos; intento++)
             {
-                conexion.Execute(sentencia);
-            }
+                try
+                {
+                    using var conexion = _fabrica.Crear();
 
-            AsegurarColumnas(conexion);
-            SembrarUsuarioAdministrador(conexion);
-            SembrarOperarios(conexion);
-            SembrarServicios(conexion);
-            SincronizarEstadosHuerfanos(conexion);
+                    foreach (var sentencia in Esquema.Split(
+                                 ';',
+                                 StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    {
+                        conexion.Execute(sentencia);
+                    }
+
+                    AsegurarColumnas(conexion);
+                    SembrarUsuarioAdministrador(conexion);
+                    SembrarOperarios(conexion);
+                    SembrarServicios(conexion);
+                    SincronizarEstadosHuerfanos(conexion);
+                    
+                    Console.WriteLine("[BaseDatos] Esquema y catálogos inicializados correctamente.");
+                    return;
+                }
+                catch (Exception ex) when (intento < maxIntentos)
+                {
+                    Console.WriteLine($"[BaseDatos] Advertencia: intento {intento}/{maxIntentos} falló al conectar a MySQL: {ex.Message}. Reintentando en 3s...");
+                    Thread.Sleep(3000);
+                }
+            }
         }
 
         private static void SincronizarEstadosHuerfanos(IDbConnection conexion)

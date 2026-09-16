@@ -163,9 +163,14 @@ builder.Services.AddOpenApi(options =>
 var app = builder.Build();
 
 // Crea el esquema y siembra los catálogos si la base de datos está vacía
-using (var alcance = app.Services.CreateScope())
+try
 {
+    using var alcance = app.Services.CreateScope();
     alcance.ServiceProvider.GetRequiredService<InicializadorBaseDatos>().Inicializar();
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[Inicializador] Advertencia al inicializar base de datos: {ex.Message}");
 }
 
 // 0. Manejo global de excepciones (siempre el primero)
