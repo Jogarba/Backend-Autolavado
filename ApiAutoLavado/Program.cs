@@ -56,12 +56,15 @@ builder.Services.AddCors(options =>
 // Configurar SignalR para eventos en tiempo real
 builder.Services.AddSignalR();
 
-// Capa de persistencia (MySQL)
 var cadenaConexion = ConstructorConexion.NormalizarMySql(
     Environment.GetEnvironmentVariable("CONECTION_STRING")
     ?? Environment.GetEnvironmentVariable("CONNECTION_STRING")
+    ?? Environment.GetEnvironmentVariable("DATABASE_URL")
+    ?? Environment.GetEnvironmentVariable("MYSQL_URL")
+    ?? Environment.GetEnvironmentVariable("MYSQL_CONNECTION_STRING")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException(
-        "No se encontró la variable CONECTION_STRING. Defínala en el archivo .env en la raíz del proyecto."));
+        "No se encontró la variable de conexión a la base de datos MySQL (CONECTION_STRING / CONNECTION_STRING / DATABASE_URL)."));
 
 builder.Services.AddSingleton<IFabricaConexion>(_ => new FabricaConexionMySql(cadenaConexion));
 builder.Services.AddSingleton<IFabricaTransacciones, FabricaTransaccionesMySql>();
