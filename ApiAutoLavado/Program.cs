@@ -69,15 +69,31 @@ builder.Services.AddSingleton<ITurnoRepository, TurnoRepository>();
 builder.Services.AddSingleton<IUsuarioRepository, UsuarioRepository>();
 
 // Configuración de autenticación JWT (roles en claims)
+var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
+    ?? builder.Configuration["JWT_KEY"]
+    ?? builder.Configuration["Jwt:Key"]
+    ?? "AutolavadoSuperSecretJwtKey2025_Min32CharsLong!";
+
+var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER")
+    ?? builder.Configuration["JWT_ISSUER"]
+    ?? builder.Configuration["Jwt:Issuer"]
+    ?? "ApiAutoLavado";
+
+var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE")
+    ?? builder.Configuration["JWT_AUDIENCE"]
+    ?? builder.Configuration["Jwt:Audience"]
+    ?? "ApiAutoLavadoClientes";
+
+var rawExp = Environment.GetEnvironmentVariable("JWT_EXPIRACION_MINUTOS")
+    ?? builder.Configuration["JWT_EXPIRACION_MINUTOS"]
+    ?? builder.Configuration["Jwt:ExpiracionMinutos"];
+
 var jwtOpciones = new JwtOpciones
 {
-    Key = Environment.GetEnvironmentVariable("JWT_KEY")
-        ?? throw new InvalidOperationException(
-            "No se encontró la variable JWT_KEY. Defínala en el archivo .env en la raíz del proyecto."),
-    Issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "ApiAutoLavado",
-    Audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "ApiAutoLavadoClientes",
-    ExpiracionMinutos = int.TryParse(
-        Environment.GetEnvironmentVariable("JWT_EXPIRACION_MINUTOS"), out var minutosJwt) ? minutosJwt : 60
+    Key = jwtKey,
+    Issuer = jwtIssuer,
+    Audience = jwtAudience,
+    ExpiracionMinutos = int.TryParse(rawExp, out var minutosJwt) ? minutosJwt : 60
 };
 
 builder.Services.AddSingleton(jwtOpciones);
