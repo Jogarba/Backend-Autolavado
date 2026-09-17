@@ -319,7 +319,10 @@ namespace ApiAutoLavado.Aplicacion.Services
                     $"Fase actual: {secuencia[indiceActual]}.");
             }
 
-            return CambiarEstado(id, fase);
+            // RF-04: al alcanzar la fase final (LISTO) el turno termina y
+            // se liberan operario y bahía (el estado pasa a FINALIZADO).
+            var esFaseFinal = string.Equals(fase, CatalogoFases.FaseFinal, StringComparison.OrdinalIgnoreCase);
+            return CambiarEstado(id, esFaseFinal ? "FINALIZADO" : fase);
         }
 
         public TurnoResponse AsignarBahia(long idTurno, int idBahia, int usuarioId, bool esAdministrador)
