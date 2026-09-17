@@ -49,6 +49,33 @@ namespace ApiAutoLavado.Persistencia.Repositorios
             }
         }
 
+        public IReadOnlyCollection<Vehiculo> ObtenerTodos()
+        {
+            using var conexion = _fabricaConexion.Crear();
+            var sql = @"
+                SELECT 
+                    placa AS Placa, 
+                    tipo_vehiculo AS TipoVehiculo, 
+                    telefono_cliente AS TelefonoCliente, 
+                    fecha_primer_registro AS FechaPrimerRegistro
+                FROM vehiculos
+                ORDER BY placa ASC";
+
+            var rows = conexion.Query(sql);
+            var lista = new List<Vehiculo>();
+            foreach (var r in rows)
+            {
+                lista.Add(new Vehiculo
+                {
+                    Placa = r.Placa,
+                    TipoVehiculo = Enum.Parse<TipoVehiculo>(r.TipoVehiculo),
+                    TelefonoCliente = r.TelefonoCliente,
+                    FechaPrimerRegistro = r.FechaPrimerRegistro
+                });
+            }
+            return lista;
+        }
+
         public IReadOnlyCollection<Vehiculo> BuscarPorPrefijo(string prefijo)
         {
             using var conexion = _fabricaConexion.Crear();

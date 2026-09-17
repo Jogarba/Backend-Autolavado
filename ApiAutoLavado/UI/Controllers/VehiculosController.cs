@@ -17,6 +17,13 @@ namespace ApiAutoLavado.UI.Controllers
             _vehiculos = vehiculos;
         }
 
+        [HttpGet]
+        [Authorize(Roles = "Administrador")]
+        public ActionResult<IEnumerable<Vehiculo>> ObtenerTodos()
+        {
+            return Ok(_vehiculos.ObtenerTodos());
+        }
+
         [HttpGet("{placa}")]
         [AllowAnonymous]
         public ActionResult<Vehiculo> ObtenerPorPlaca(string placa)
