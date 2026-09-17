@@ -40,6 +40,16 @@ namespace ApiAutoLavado.Persistencia.Repositorios
             return fila?.AModelo();
         }
 
+        public Operario? ObtenerPorUsuarioId(int usuarioId)
+        {
+            using var conexion = _fabrica.Crear();
+            var fila = conexion.QuerySingleOrDefault<OperarioFila>(
+                $"SELECT {Columnas} FROM {Origen} WHERE o.usuario_id = @UsuarioId",
+                new { UsuarioId = usuarioId });
+
+            return fila?.AModelo();
+        }
+
         public int? IntentarAgregar(Operario operario, ITransaccionBd? transaccion = null)
         {
             var conexion = transaccion?.Conexion ?? _fabrica.Crear();

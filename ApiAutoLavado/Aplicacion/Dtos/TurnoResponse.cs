@@ -12,6 +12,8 @@ namespace ApiAutoLavado.Aplicacion.Dtos
 
         public int? IdOperario { get; set; }
 
+        public int? IdBahia { get; set; }
+
         public string EstadoActual { get; set; } = string.Empty;
 
         public DateTime FechaIngreso { get; set; }

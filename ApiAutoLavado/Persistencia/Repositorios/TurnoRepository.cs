@@ -11,7 +11,7 @@ namespace ApiAutoLavado.Persistencia.Repositorios
     {
         private const string Columnas =
             "id_turno AS Id, numero_turno AS NumeroTurno, placa AS Placa, " +
-            "id_servicio AS IdServicio, id_operario AS IdOperario, " +
+            "id_servicio AS IdServicio, id_operario AS IdOperario, id_bahia AS IdBahia, " +
             "estado_actual AS EstadoActual, fecha_ingreso AS FechaIngreso, " +
             "hash_consulta AS HashConsulta";
 
@@ -39,6 +39,16 @@ namespace ApiAutoLavado.Persistencia.Repositorios
             return fila?.AModelo();
         }
 
+        public IReadOnlyCollection<Turno> ObtenerPorOperario(int idOperario)
+        {
+            using var conexion = _fabrica.Crear();
+            var filas = conexion.Query<TurnoFila>(
+                $"SELECT {Columnas} FROM turnos WHERE id_operario = @IdOperario ORDER BY fecha_ingreso DESC",
+                new { IdOperario = idOperario });
+
+            return filas.Select(f => f.AModelo()).ToList();
+        }
+
         public long Agregar(Turno turno, ITransaccionBd? transaccion = null)
         {
             var conexion = transaccion?.Conexion ?? _fabrica.Crear();
@@ -47,15 +57,16 @@ namespace ApiAutoLavado.Persistencia.Repositorios
             {
                 conexion.Execute(
                     "INSERT INTO turnos (numero_turno, placa, id_servicio, " +
-                    "id_operario, estado_actual, fecha_ingreso, hash_consulta) " +
+                    "id_operario, id_bahia, estado_actual, fecha_ingreso, hash_consulta) " +
                     "VALUES (@NumeroTurno, @Placa, @IdServicio, " +
-                    "@IdOperario, @EstadoActual, @FechaIngreso, @HashConsulta)",
+                    "@IdOperario, @IdBahia, @EstadoActual, @FechaIngreso, @HashConsulta)",
                     new
                     {
                         turno.NumeroTurno,
                         turno.Placa,
                         turno.IdServicio,
                         turno.IdOperario,
+                        turno.IdBahia,
                         turno.EstadoActual,
                         turno.FechaIngreso,
                         turno.HashConsulta
@@ -117,6 +128,28 @@ namespace ApiAutoLavado.Persistencia.Repositorios
                         IdOperario = idOperario,
                         EstadoNuevo = estadoNuevo
                     },
+                    transaccion?.Transaccion);
+
+                return afectadas > 0;
+            }
+            finally
+            {
+                if (transaccion is null)
+                {
+                    conexion.Dispose();
+                }
+            }
+        }
+
+        public bool AsignarBahia(long idTurno, int? idBahia, ITransaccionBd? transaccion = null)
+        {
+            var conexion = transaccion?.Conexion ?? _fabrica.Crear();
+
+            try
+            {
+                var afectadas = conexion.Execute(
+                    "UPDATE turnos SET id_bahia = @IdBahia WHERE id_turno = @IdTurno",
+                    new { IdTurno = idTurno, IdBahia = idBahia },
                     transaccion?.Transaccion);
 
                 return afectadas > 0;

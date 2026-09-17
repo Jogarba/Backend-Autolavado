@@ -51,12 +51,22 @@ namespace ApiAutoLavado.Persistencia
                 fecha_primer_registro TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+            CREATE TABLE IF NOT EXISTS bahias (
+                id_bahia INT NOT NULL AUTO_INCREMENT,
+                nombre VARCHAR(50) NOT NULL,
+                estado VARCHAR(20) NOT NULL DEFAULT 'DISPONIBLE',
+                fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id_bahia),
+                UNIQUE KEY uq_bahias_nombre (nombre)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
             CREATE TABLE IF NOT EXISTS turnos (
                 id_turno BIGINT NOT NULL AUTO_INCREMENT,
                 numero_turno VARCHAR(10) NOT NULL,
                 placa VARCHAR(6) NOT NULL,
                 id_servicio INT NOT NULL,
                 id_operario INT NULL,
+                id_bahia INT NULL,
                 estado_actual VARCHAR(30) NOT NULL DEFAULT 'EN_COLA',
                 fecha_ingreso TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 hash_consulta VARCHAR(64) NOT NULL,
@@ -65,8 +75,10 @@ namespace ApiAutoLavado.Persistencia
                 KEY idx_vehiculos_placa (placa),
                 KEY idx_turnos_cola (estado_actual, fecha_ingreso),
                 KEY idx_operarios_estado (id_operario),
+                KEY idx_turnos_bahia (id_bahia),
                 CONSTRAINT turnos_ibfk_1 FOREIGN KEY (id_servicio) REFERENCES servicios (id_servicio),
                 CONSTRAINT turnos_ibfk_2 FOREIGN KEY (id_operario) REFERENCES operarios (id_operario),
+                CONSTRAINT turnos_ibfk_4 FOREIGN KEY (id_bahia) REFERENCES bahias (id_bahia),
                 CONSTRAINT turnos_ibfk_3 FOREIGN KEY (placa) REFERENCES vehiculos (placa)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -116,6 +128,7 @@ namespace ApiAutoLavado.Persistencia
                     SembrarUsuarioAdministrador(conexion);
                     SembrarOperarios(conexion);
                     SembrarServicios(conexion);
+                    SembrarBahias(conexion);
                     SincronizarEstadosHuerfanos(conexion);
                     
                     Console.WriteLine("[BaseDatos] Esquema y catálogos inicializados correctamente.");
@@ -202,6 +215,20 @@ namespace ApiAutoLavado.Persistencia
             {
                 conexion.Execute(
                     "ALTER TABLE operarios ADD COLUMN fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
+            }
+
+            // Turnos: columna id_bahia para bases creadas antes de las bahías.
+            var existeIdBahia = conexion.ExecuteScalar<long>(
+                "SELECT COUNT(*) FROM information_schema.COLUMNS " +
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'turnos' AND COLUMN_NAME = 'id_bahia'");
+
+            if (existeIdBahia == 0)
+            {
+                conexion.Execute("ALTER TABLE turnos ADD COLUMN id_bahia INT NULL AFTER id_operario");
+                conexion.Execute("ALTER TABLE turnos ADD KEY idx_turnos_bahia (id_bahia)");
+                conexion.Execute(
+                    "ALTER TABLE turnos ADD CONSTRAINT turnos_ibfk_4 " +
+                    "FOREIGN KEY (id_bahia) REFERENCES bahias (id_bahia)");
             }
         }
 
@@ -319,6 +346,26 @@ namespace ApiAutoLavado.Persistencia
                 "INSERT INTO servicios (nombre, tarifa_base, tiempo_estimado_min, fases) " +
                 "VALUES (@Nombre, @Tarifa, @Tiempo, @Fases)",
                 servicios);
+        }
+
+        private static void SembrarBahias(IDbConnection conexion)
+        {
+            if (conexion.ExecuteScalar<long>("SELECT COUNT(*) FROM bahias") > 0)
+            {
+                return;
+            }
+
+            var bahias = new[]
+            {
+                new { Nombre = "BAHIA 1" },
+                new { Nombre = "BAHIA 2" },
+                new { Nombre = "BAHIA 3" },
+                new { Nombre = "BAHIA 4" }
+            };
+
+            conexion.Execute(
+                "INSERT INTO bahias (nombre, estado) VALUES (@Nombre, 'DISPONIBLE')",
+                bahias);
         }
     }
 }

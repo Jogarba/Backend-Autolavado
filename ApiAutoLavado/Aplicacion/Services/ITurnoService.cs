@@ -8,9 +8,17 @@ namespace ApiAutoLavado.Aplicacion.Services
 
         TableroTurnosResponse ObtenerTablero();
 
+        IReadOnlyCollection<TurnoDisplayResponse> ObtenerDisplay();
+
         TurnoCreadoResponse Crear(CrearTurnoRequest request);
 
-        TurnoResponse ActualizarFase(long id, string nuevaFase);
+        TurnoDetalleResponse ObtenerTurnoAsignado(int usuarioId);
+
+        IReadOnlyCollection<TurnoDetalleResponse> ObtenerHistorialOperario(int usuarioId);
+
+        TurnoResponse AsignarBahia(long idTurno, int idBahia, int usuarioId, bool esAdministrador);
+
+        TurnoResponse ActualizarFase(long id, string nuevaFase, int usuarioId, bool esAdministrador);
 
         TurnoResponse Finalizar(long id);
 

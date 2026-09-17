@@ -29,6 +29,10 @@ namespace ApiAutoLavado.UI.Middleware
             {
                 await EscribirRespuestaAsync(context, StatusCodes.Status401Unauthorized, ex.Message);
             }
+            catch (AccesoDenegadoException ex)
+            {
+                await EscribirRespuestaAsync(context, StatusCodes.Status403Forbidden, ex.Message);
+            }
             catch (ReglaNegocioException ex)
             {
                 await EscribirRespuestaAsync(context, StatusCodes.Status409Conflict, ex.Message);

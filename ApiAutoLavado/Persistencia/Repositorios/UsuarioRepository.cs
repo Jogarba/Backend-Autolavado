@@ -1,6 +1,8 @@
+using System.Linq;
 using Dapper;
 using MySqlConnector;
 using ApiAutoLavado.Aplicacion.Repositorios;
+using ApiAutoLavado.Domain.Enums;
 using ApiAutoLavado.Domain.Models;
 using ApiAutoLavado.Persistencia.Mapeo;
 
@@ -27,6 +29,26 @@ namespace ApiAutoLavado.Persistencia.Repositorios
                 new { NombreUsuario = nombreUsuario });
 
             return fila?.AModelo();
+        }
+
+        public Usuario? ObtenerPorId(int id)
+        {
+            using var conexion = _fabrica.Crear();
+            var fila = conexion.QuerySingleOrDefault<UsuarioFila>(
+                $"SELECT {Columnas} FROM usuarios WHERE id_usuario = @Id",
+                new { Id = id });
+
+            return fila?.AModelo();
+        }
+
+        public IReadOnlyCollection<Usuario> ObtenerPorRol(RolUsuario rol)
+        {
+            using var conexion = _fabrica.Crear();
+            var filas = conexion.Query<UsuarioFila>(
+                $"SELECT {Columnas} FROM usuarios WHERE rol = @Rol ORDER BY nombre_usuario",
+                new { Rol = rol.ANombreBd() });
+
+            return filas.Select(f => f.AModelo()).ToList();
         }
 
         public int? IntentarAgregar(Usuario usuario, ITransaccionBd? transaccion = null)
@@ -64,6 +86,40 @@ namespace ApiAutoLavado.Persistencia.Repositorios
                     conexion.Dispose();
                 }
             }
+        }
+
+        public bool Actualizar(Usuario usuario)
+        {
+            using var conexion = _fabrica.Crear();
+
+            try
+            {
+                var afectadas = conexion.Execute(
+                    "UPDATE usuarios SET nombre_usuario = @NombreUsuario, activo = @Activo WHERE id_usuario = @Id",
+                    new
+                    {
+                        usuario.Id,
+                        usuario.NombreUsuario,
+                        Activo = usuario.Activo ? 1 : 0
+                    });
+
+                return afectadas > 0;
+            }
+            catch (MySqlException ex) when (ex.Number == 1062)
+            {
+                // Nombre de usuario duplicado (índice único)
+                return false;
+            }
+        }
+
+        public bool CambiarContrasena(int id, string contrasenaHash)
+        {
+            using var conexion = _fabrica.Crear();
+            var afectadas = conexion.Execute(
+                "UPDATE usuarios SET contrasena_hash = @Hash WHERE id_usuario = @Id",
+                new { Id = id, Hash = contrasenaHash });
+
+            return afectadas > 0;
         }
 
         public bool CambiarActivo(int id, bool activo, ITransaccionBd? transaccion = null)

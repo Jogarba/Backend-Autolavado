@@ -61,6 +61,12 @@ namespace ApiAutoLavado.Aplicacion.Catalogo
         public static bool EsTerminal(string fase)
             => Terminales.Contains(Normalizar(fase), StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>Claves de fase válidas del catálogo.</summary>
+        public static IReadOnlyCollection<string> ClavesConocidas => Metadatos.Keys.ToList();
+
+        public static bool EsFaseConocida(string clave)
+            => !string.IsNullOrWhiteSpace(clave) && Metadatos.ContainsKey(Normalizar(clave));
+
         public static string Titulo(string clave)
             => Metadatos.TryGetValue(Normalizar(clave), out var meta) ? meta.Titulo : Normalizar(clave);
 

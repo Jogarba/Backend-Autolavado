@@ -100,6 +100,8 @@ namespace ApiAutoLavado.Persistencia.Mapeo
 
         public int? IdOperario { get; set; }
 
+        public int? IdBahia { get; set; }
+
         public string EstadoActual { get; set; } = string.Empty;
 
         public DateTime FechaIngreso { get; set; }
@@ -113,9 +115,29 @@ namespace ApiAutoLavado.Persistencia.Mapeo
             Placa = Placa,
             IdServicio = IdServicio,
             IdOperario = IdOperario,
+            IdBahia = IdBahia,
             EstadoActual = EstadoActual,
             FechaIngreso = DateTime.SpecifyKind(FechaIngreso, DateTimeKind.Utc),
             HashConsulta = HashConsulta
+        };
+    }
+
+    internal sealed class BahiaFila
+    {
+        public int Id { get; set; }
+
+        public string Nombre { get; set; } = string.Empty;
+
+        public string Estado { get; set; } = string.Empty;
+
+        public DateTime FechaCreacion { get; set; }
+
+        public Bahia AModelo() => new()
+        {
+            Id = Id,
+            Nombre = Nombre,
+            Estado = Enum.Parse<EstadoBahia>(Estado, ignoreCase: true),
+            FechaCreacion = FechaCreacion
         };
     }
 }

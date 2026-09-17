@@ -12,6 +12,8 @@ namespace ApiAutoLavado.Domain.Models
 
         public int? IdOperario { get; set; }
 
+        public int? IdBahia { get; set; }
+
         public string EstadoActual { get; set; } = "EN_COLA";
 
         public DateTime FechaIngreso { get; set; }

@@ -108,6 +108,7 @@ builder.Services.AddSingleton<IServicioRepository, ServicioRepository>();
 builder.Services.AddSingleton<ITurnoRepository, TurnoRepository>();
 builder.Services.AddSingleton<IUsuarioRepository, UsuarioRepository>();
 builder.Services.AddSingleton<IReservaRepository, ReservaRepository>();
+builder.Services.AddSingleton<IBahiaRepository, BahiaRepository>();
 
 // Configuración de autenticación JWT (roles en claims)
 var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")
@@ -163,8 +164,10 @@ builder.Services.AddAuthorization();
 // Capa de aplicación (casos de uso)
 builder.Services.AddSingleton<ITurnoRealtimeNotifier, TurnoRealtimeNotifier>();
 builder.Services.AddSingleton<IAuthService, AuthService>();
+builder.Services.AddSingleton<IUsuarioService, UsuarioService>();
 builder.Services.AddSingleton<IOperarioService, OperarioService>();
 builder.Services.AddSingleton<IServicioService, ServicioService>();
+builder.Services.AddSingleton<IBahiaService, BahiaService>();
 builder.Services.AddSingleton<ITurnoService, TurnoService>();
 builder.Services.AddSingleton<IReservaService, ReservaService>();
 

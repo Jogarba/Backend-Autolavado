@@ -7,5 +7,9 @@ namespace ApiAutoLavado.Aplicacion.Repositorios
         IReadOnlyCollection<Servicio> ObtenerTodos();
 
         Servicio? ObtenerPorId(int id);
+
+        int Crear(Servicio servicio);
+
+        bool Actualizar(Servicio servicio);
     }
 }

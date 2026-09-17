@@ -1,8 +1,10 @@
+using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ApiAutoLavado.Aplicacion.Dtos;
 using ApiAutoLavado.Aplicacion.Services;
+using ApiAutoLavado.Domain.Exceptions;
 
 namespace ApiAutoLavado.UI.Controllers
 {
@@ -33,6 +35,13 @@ namespace ApiAutoLavado.UI.Controllers
         public ActionResult<TableroTurnosResponse> ObtenerTablero()
         {
             return Ok(_turnoService.ObtenerTablero());
+        }
+
+        [HttpGet("display")]
+        [AllowAnonymous]
+        public ActionResult<IEnumerable<TurnoDisplayResponse>> ObtenerDisplay()
+        {
+            return Ok(_turnoService.ObtenerDisplay());
         }
 
         [HttpPost]
@@ -88,22 +97,55 @@ namespace ApiAutoLavado.UI.Controllers
             }
         }
 
+        [HttpGet("mio")]
+        public ActionResult<TurnoDetalleResponse> ObtenerMiTurno()
+        {
+            return Ok(_turnoService.ObtenerTurnoAsignado(ObtenerUsuarioId()));
+        }
+
+        [HttpGet("mios")]
+        public ActionResult<IEnumerable<TurnoDetalleResponse>> ObtenerMisTurnos()
+        {
+            return Ok(_turnoService.ObtenerHistorialOperario(ObtenerUsuarioId()));
+        }
+
+        [HttpPatch("{id:long}/bahia")]
+        public ActionResult<TurnoResponse> AsignarBahia(long id, [FromBody] AsignarBahiaRequest request)
+        {
+            var esAdministrador = User.IsInRole("Administrador");
+            return Ok(_turnoService.AsignarBahia(id, request.IdBahia, ObtenerUsuarioId(), esAdministrador));
+        }
+
         [HttpPatch("{id:long}/fase")]
         public ActionResult<TurnoResponse> ActualizarFase(long id, [FromBody] ActualizarFaseRequest request)
         {
-            return Ok(_turnoService.ActualizarFase(id, request.NuevaFase));
+            var esAdministrador = User.IsInRole("Administrador");
+            return Ok(_turnoService.ActualizarFase(id, request.NuevaFase, ObtenerUsuarioId(), esAdministrador));
         }
 
         [HttpPatch("{id:long}/finalizar")]
+        [Authorize(Roles = "Administrador")]
         public ActionResult<TurnoResponse> Finalizar(long id)
         {
             return Ok(_turnoService.Finalizar(id));
         }
 
         [HttpPatch("{id:long}/cancelar")]
+        [Authorize(Roles = "Administrador")]
         public ActionResult<TurnoResponse> Cancelar(long id)
         {
             return Ok(_turnoService.Cancelar(id));
+        }
+
+        private int ObtenerUsuarioId()
+        {
+            var valor = User.FindFirst("sub")?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(valor, out var id))
+            {
+                return id;
+            }
+
+            throw new AccesoDenegadoException("No se pudo identificar al usuario autenticado.");
         }
     }
 }

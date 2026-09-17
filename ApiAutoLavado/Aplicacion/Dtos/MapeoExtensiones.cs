@@ -20,6 +20,22 @@ namespace ApiAutoLavado.Aplicacion.Dtos
             FechaCreacion = operario.FechaCreacion
         };
 
+        public static BahiaResponse ToResponse(this Bahia bahia) => new()
+        {
+            Id = bahia.Id,
+            Nombre = bahia.Nombre,
+            Estado = bahia.Estado
+        };
+
+        public static UsuarioResponse ToResponse(this Usuario usuario) => new()
+        {
+            Id = usuario.Id,
+            NombreUsuario = usuario.NombreUsuario,
+            Rol = usuario.Rol,
+            Activo = usuario.Activo,
+            FechaCreacion = usuario.FechaCreacion
+        };
+
         public static ServicioResponse ToResponse(this Servicio servicio) => new()
         {
             Id = servicio.Id,
@@ -36,6 +52,7 @@ namespace ApiAutoLavado.Aplicacion.Dtos
             Placa = turno.Placa,
             IdServicio = turno.IdServicio,
             IdOperario = turno.IdOperario,
+            IdBahia = turno.IdBahia,
             EstadoActual = turno.EstadoActual,
             FechaIngreso = turno.FechaIngreso,
             HashConsulta = turno.HashConsulta

@@ -31,6 +31,10 @@ namespace ApiAutoLavado.Aplicacion.Dtos
 
         public string? NombreOperario { get; set; }
 
+        public int? IdBahia { get; set; }
+
+        public string? NombreBahia { get; set; }
+
         public string EstadoActual { get; set; } = string.Empty;
 
         public string FaseTitulo { get; set; } = string.Empty;

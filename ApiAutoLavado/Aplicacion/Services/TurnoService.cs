@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using ApiAutoLavado.Aplicacion.Catalogo;
 using ApiAutoLavado.Aplicacion.Dtos;
 using ApiAutoLavado.Aplicacion.Repositorios;
+using ApiAutoLavado.Domain.Enums;
 using ApiAutoLavado.Domain.Exceptions;
 using ApiAutoLavado.Domain.Models;
 
@@ -20,6 +21,7 @@ namespace ApiAutoLavado.Aplicacion.Services
         private readonly IOperarioRepository _operarios;
         private readonly IServicioRepository _servicios;
         private readonly ITurnoRepository _turnos;
+        private readonly IBahiaRepository _bahias;
         private readonly ITurnoRealtimeNotifier _realtimeNotifier;
         private readonly IFabricaTransacciones _transacciones;
 
@@ -32,6 +34,7 @@ namespace ApiAutoLavado.Aplicacion.Services
             IOperarioRepository operarios,
             IServicioRepository servicios,
             ITurnoRepository turnos,
+            IBahiaRepository bahias,
             ITurnoRealtimeNotifier realtimeNotifier,
             IFabricaTransacciones transacciones)
         {
@@ -39,6 +42,7 @@ namespace ApiAutoLavado.Aplicacion.Services
             _operarios = operarios;
             _servicios = servicios;
             _turnos = turnos;
+            _bahias = bahias;
             _realtimeNotifier = realtimeNotifier;
             _transacciones = transacciones;
         }
@@ -65,7 +69,9 @@ namespace ApiAutoLavado.Aplicacion.Services
             foreach (var turno in activos)
             {
                 var detalle = ConstruirDetalle(turno);
-                if (turno.IdOperario.HasValue)
+                // "En atención" solo cuando ya tiene bahía (el trabajo arrancó);
+                // si aún espera bahía, aunque tenga operario, cuenta como cola.
+                if (turno.IdBahia.HasValue)
                 {
                     enAtencion.Add(detalle);
                 }
@@ -80,6 +86,17 @@ namespace ApiAutoLavado.Aplicacion.Services
                 EnAtencion = enAtencion,
                 EnCola = enCola
             };
+        }
+
+        public IReadOnlyCollection<TurnoDisplayResponse> ObtenerDisplay()
+        {
+            return _turnos.ObtenerTodos()
+                .Where(t => !EsFinalizado(t.EstadoActual))
+                // Primero los que están en atención (con operario), luego la cola por orden de llegada.
+                .OrderBy(t => t.IdOperario is null)
+                .ThenBy(t => t.FechaIngreso)
+                .Select(ConstruirDisplay)
+                .ToList();
         }
 
         public TurnoCreadoResponse Crear(CrearTurnoRequest request)
@@ -175,10 +192,67 @@ namespace ApiAutoLavado.Aplicacion.Services
             };
         }
 
-        public TurnoResponse ActualizarFase(long id, string nuevaFase)
+        public TurnoDetalleResponse ObtenerTurnoAsignado(int usuarioId)
+        {
+            var operario = _operarios.ObtenerPorUsuarioId(usuarioId)
+                ?? throw new AccesoDenegadoException("El usuario autenticado no está vinculado a un operario.");
+
+            // Se excluyen los turnos ya en su última fase (LISTO): el operario ya los liberó.
+            var turno = _turnos.ObtenerTodos()
+                .Where(t => t.IdOperario == operario.Id
+                            && !EsFinalizado(t.EstadoActual)
+                            && !EstaEnFaseFinal(t))
+                .OrderBy(t => t.FechaIngreso)
+                .FirstOrDefault()
+                ?? throw new NoEncontradoException("No tienes un turno asignado en este momento.");
+
+            return ConstruirDetalle(turno);
+        }
+
+        private bool EstaEnFaseFinal(Turno turno)
+        {
+            var servicio = _servicios.ObtenerPorId(turno.IdServicio);
+            var secuencia = CatalogoFases.ObtenerSecuencia(servicio?.Fases);
+            var estado = CatalogoFases.NormalizarFase(turno.EstadoActual, secuencia);
+
+            return secuencia.Count > 0 && IndiceDe(secuencia, estado) == secuencia.Count - 1;
+        }
+
+        public IReadOnlyCollection<TurnoDetalleResponse> ObtenerHistorialOperario(int usuarioId)
+        {
+            var operario = _operarios.ObtenerPorUsuarioId(usuarioId)
+                ?? throw new AccesoDenegadoException("El usuario autenticado no está vinculado a un operario.");
+
+            return _turnos.ObtenerPorOperario(operario.Id)
+                .OrderByDescending(t => t.FechaIngreso)
+                .Select(ConstruirDetalle)
+                .ToList();
+        }
+
+        public TurnoResponse ActualizarFase(long id, string nuevaFase, int usuarioId, bool esAdministrador)
         {
             var turno = _turnos.ObtenerPorId(id)
                 ?? throw new NoEncontradoException($"No existe un turno con id {id}.");
+
+            // RF-04: el operario solo puede avanzar el turno que tiene asignado.
+            if (!esAdministrador)
+            {
+                var operario = _operarios.ObtenerPorUsuarioId(usuarioId)
+                    ?? throw new AccesoDenegadoException("El usuario autenticado no está vinculado a un operario.");
+
+                if (turno.IdOperario != operario.Id)
+                {
+                    throw new AccesoDenegadoException(
+                        $"El turno {turno.NumeroTurno} está asignado a otro operario.");
+                }
+            }
+
+            // El operario debe elegir su bahía antes de iniciar (avanzar la primera fase).
+            if (!turno.IdBahia.HasValue)
+            {
+                throw new ReglaNegocioException(
+                    "Debe seleccionar una bahía antes de avanzar el turno.");
+            }
 
             var servicio = _servicios.ObtenerPorId(turno.IdServicio);
             var secuencia = CatalogoFases.ObtenerSecuencia(servicio?.Fases);
@@ -190,13 +264,109 @@ namespace ApiAutoLavado.Aplicacion.Services
             }
 
             // RN-05: solo se aceptan fases definidas en el catálogo del servicio contratado.
-            if (!secuencia.Any(c => string.Equals(c, fase, StringComparison.OrdinalIgnoreCase)))
+            var indiceNuevo = IndiceDe(secuencia, fase);
+            if (indiceNuevo < 0)
             {
                 throw new ReglaNegocioException(
                     $"La fase '{nuevaFase}' no existe para el servicio '{servicio?.Nombre ?? turno.IdServicio.ToString()}'.");
             }
 
+            // RF-04: solo se avanza a la siguiente fase, no se salta ni se retrocede.
+            var estadoActual = CatalogoFases.NormalizarFase(turno.EstadoActual, secuencia);
+            var indiceActual = IndiceDe(secuencia, estadoActual);
+
+            if (indiceActual < 0)
+            {
+                throw new ReglaNegocioException(
+                    $"El turno está en un estado no reconocido ({turno.EstadoActual}).");
+            }
+
+            if (indiceActual >= secuencia.Count - 1)
+            {
+                throw new ReglaNegocioException(
+                    "El turno ya completó todas las fases; use la finalización del turno.");
+            }
+
+            if (indiceNuevo != indiceActual + 1)
+            {
+                throw new ReglaNegocioException(
+                    $"Solo se puede avanzar a la siguiente fase ({secuencia[indiceActual + 1]}). " +
+                    $"Fase actual: {secuencia[indiceActual]}.");
+            }
+
             return CambiarEstado(id, fase);
+        }
+
+        public TurnoResponse AsignarBahia(long idTurno, int idBahia, int usuarioId, bool esAdministrador)
+        {
+            var turno = _turnos.ObtenerPorId(idTurno)
+                ?? throw new NoEncontradoException($"No existe un turno con id {idTurno}.");
+
+            if (EsFinalizado(turno.EstadoActual))
+            {
+                throw new ReglaNegocioException($"El turno {turno.NumeroTurno} ya está cerrado.");
+            }
+
+            // El operario solo puede elegir bahía para el turno que tiene asignado.
+            if (!esAdministrador)
+            {
+                var operario = _operarios.ObtenerPorUsuarioId(usuarioId)
+                    ?? throw new AccesoDenegadoException("El usuario autenticado no está vinculado a un operario.");
+
+                if (turno.IdOperario != operario.Id)
+                {
+                    throw new AccesoDenegadoException(
+                        $"El turno {turno.NumeroTurno} está asignado a otro operario.");
+                }
+            }
+
+            var bahia = _bahias.ObtenerPorId(idBahia)
+                ?? throw new NoEncontradoException($"No existe una bahía con id {idBahia}.");
+
+            if (turno.IdBahia == idBahia && bahia.Estado == EstadoBahia.Ocupada)
+            {
+                return turno.ToResponse();
+            }
+
+            if (bahia.Estado == EstadoBahia.Mantenimiento)
+            {
+                throw new ReglaNegocioException($"La bahía {bahia.Nombre} está en mantenimiento.");
+            }
+
+            if (bahia.Estado == EstadoBahia.Ocupada)
+            {
+                throw new ReglaNegocioException($"La bahía {bahia.Nombre} ya está ocupada por otro turno.");
+            }
+
+            using var transaccion = _transacciones.Iniciar();
+            try
+            {
+                // Exclusión mutua real: solo ocupa si sigue DISPONIBLE.
+                if (!_bahias.IntentarOcupar(idBahia, transaccion))
+                {
+                    throw new ReglaNegocioException($"La bahía {bahia.Nombre} acaba de ser ocupada por otro operario.");
+                }
+
+                if (turno.IdBahia.HasValue && turno.IdBahia.Value != idBahia)
+                {
+                    var idBahiaAnterior = turno.IdBahia.Value;
+                    _bahias.Liberar(idBahiaAnterior, transaccion);
+                    DisponerBahiaEnEspera(idBahiaAnterior, transaccion);
+                }
+
+                _turnos.AsignarBahia(idTurno, idBahia, transaccion);
+                turno.IdBahia = idBahia;
+
+                transaccion.Confirmar();
+            }
+            catch
+            {
+                transaccion.Revertir();
+                throw;
+            }
+
+            NotificarCambio(turno);
+            return turno.ToResponse();
         }
 
         public TurnoResponse Finalizar(long id) => CambiarEstado(id, "FINALIZADO");
@@ -249,6 +419,8 @@ namespace ApiAutoLavado.Aplicacion.Services
 
                 turno.EstadoActual = nuevo;
 
+                Turno? turnoEncadenado = null;
+
                 // RN-04 / RF-04: al cerrar la última fase se libera al operario o se le encadena el primer turno en cola.
                 if (CatalogoFases.EsTerminal(nuevo) && turno.IdOperario.HasValue)
                 {
@@ -267,11 +439,23 @@ namespace ApiAutoLavado.Aplicacion.Services
                             turno.IdOperario.Value,
                             CatalogoFases.FaseInicial,
                             transaccion);
+
+                        siguienteEnCola.IdOperario = turno.IdOperario.Value;
+                        turnoEncadenado = siguienteEnCola;
                     }
                     else
                     {
                         _operarios.Liberar(turno.IdOperario.Value, transaccion);
                     }
+                }
+
+                // Al cerrar el turno se libera la bahía y, si hay un turno esperando
+                // (o al operario encadenado), se le asigna para que pueda continuar.
+                if (CatalogoFases.EsTerminal(nuevo) && turno.IdBahia.HasValue)
+                {
+                    var idBahiaLibre = turno.IdBahia.Value;
+                    _bahias.Liberar(idBahiaLibre, transaccion);
+                    DisponerBahiaEnEspera(idBahiaLibre, transaccion, turnoEncadenado);
                 }
 
                 transaccion.Confirmar();
@@ -285,6 +469,31 @@ namespace ApiAutoLavado.Aplicacion.Services
             NotificarCambio(turno);
 
             return turno.ToResponse();
+        }
+
+        /// <summary>
+        /// Asigna una bahía recién liberada al turno más antiguo que tenga operario
+        /// asignado y aún no tenga bahía (el que quedó en cola esperando).
+        /// </summary>
+        private void DisponerBahiaEnEspera(int idBahiaLibre, ITransaccionBd transaccion, Turno? candidato = null)
+        {
+            // FIFO: primero el turno que lleva más tiempo esperando bahía; si no hay,
+            // se usa el turno recién encadenado al operario que acaba de liberarse.
+            var esperando = _turnos.ObtenerTodos()
+                .Where(t => t.IdOperario.HasValue && !t.IdBahia.HasValue && !EsFinalizado(t.EstadoActual))
+                .OrderBy(t => t.FechaIngreso)
+                .FirstOrDefault()
+                ?? candidato;
+
+            if (esperando is null)
+            {
+                return;
+            }
+
+            if (_bahias.IntentarOcupar(idBahiaLibre, transaccion))
+            {
+                _turnos.AsignarBahia(esperando.Id, idBahiaLibre, transaccion);
+            }
         }
 
         private void NotificarCambio(Turno turno)
@@ -301,10 +510,32 @@ namespace ApiAutoLavado.Aplicacion.Services
             });
         }
 
+        private TurnoDisplayResponse ConstruirDisplay(Turno turno)
+        {
+            var servicio = _servicios.ObtenerPorId(turno.IdServicio);
+            var bahia = turno.IdBahia.HasValue ? _bahias.ObtenerPorId(turno.IdBahia.Value) : null;
+            var secuencia = CatalogoFases.ObtenerSecuencia(servicio?.Fases);
+            var estado = CatalogoFases.NormalizarFase(turno.EstadoActual, secuencia);
+            var indice = IndiceDe(secuencia, estado);
+
+            return new TurnoDisplayResponse
+            {
+                IdTurno = turno.Id,
+                NumeroTurno = turno.NumeroTurno,
+                Placa = turno.Placa,
+                EnAtencion = turno.IdBahia.HasValue,
+                NombreBahia = bahia?.Nombre,
+                EstadoActual = estado,
+                FaseTitulo = CatalogoFases.Titulo(estado),
+                ProgresoPorcentaje = CalcularPorcentaje(secuencia, estado, indice)
+            };
+        }
+
         private TurnoDetalleResponse ConstruirDetalle(Turno turno)
         {
             var servicio = _servicios.ObtenerPorId(turno.IdServicio);
             var operario = turno.IdOperario.HasValue ? _operarios.ObtenerPorId(turno.IdOperario.Value) : null;
+            var bahia = turno.IdBahia.HasValue ? _bahias.ObtenerPorId(turno.IdBahia.Value) : null;
             var secuencia = CatalogoFases.ObtenerSecuencia(servicio?.Fases);
             var estado = CatalogoFases.NormalizarFase(turno.EstadoActual, secuencia);
             var indice = IndiceDe(secuencia, estado);
@@ -316,6 +547,8 @@ namespace ApiAutoLavado.Aplicacion.Services
                 Placa = turno.Placa,
                 IdServicio = turno.IdServicio,
                 NombreServicio = servicio?.Nombre ?? "LAVADO_GENERAL",
+                IdBahia = turno.IdBahia,
+                NombreBahia = bahia?.Nombre,
                 IdOperario = turno.IdOperario,
                 NombreOperario = operario != null ? $"{operario.Nombres} {operario.Apellidos}" : null,
                 EstadoActual = estado,

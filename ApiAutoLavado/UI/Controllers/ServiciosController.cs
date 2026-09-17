@@ -22,5 +22,19 @@ namespace ApiAutoLavado.UI.Controllers
         {
             return Ok(_servicioService.ObtenerTodos());
         }
+
+        [HttpPost]
+        [Authorize(Roles = "Administrador")]
+        public ActionResult<ServicioResponse> Crear([FromBody] CrearServicioRequest request)
+        {
+            return StatusCode(StatusCodes.Status201Created, _servicioService.Crear(request));
+        }
+
+        [HttpPut("{id:int}")]
+        [Authorize(Roles = "Administrador")]
+        public ActionResult<ServicioResponse> Editar(int id, [FromBody] EditarServicioRequest request)
+        {
+            return Ok(_servicioService.Editar(id, request));
+        }
     }
 }
