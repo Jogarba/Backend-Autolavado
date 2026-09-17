@@ -65,10 +65,11 @@ namespace ApiAutoLavado.Aplicacion.Services
 
             var enAtencion = new List<TurnoDetalleResponse>();
             var enCola = new List<TurnoDetalleResponse>();
+            var (servicios, operarios, bahias) = ObtenerLookups();
 
             foreach (var turno in activos)
             {
-                var detalle = ConstruirDetalle(turno);
+                var detalle = ConstruirDetalle(turno, servicios, operarios, bahias);
                 // "En atención" solo cuando ya tiene bahía (el trabajo arrancó);
                 // si aún espera bahía, aunque tenga operario, cuenta como cola.
                 if (turno.IdBahia.HasValue)
@@ -90,12 +91,14 @@ namespace ApiAutoLavado.Aplicacion.Services
 
         public IReadOnlyCollection<TurnoDisplayResponse> ObtenerDisplay()
         {
+            var (servicios, _, bahias) = ObtenerLookups();
+
             return _turnos.ObtenerTodos()
                 .Where(t => !EsFinalizado(t.EstadoActual))
                 // Primero los que están en atención (con operario), luego la cola por orden de llegada.
                 .OrderBy(t => t.IdOperario is null)
                 .ThenBy(t => t.FechaIngreso)
-                .Select(ConstruirDisplay)
+                .Select(t => ConstruirDisplay(t, servicios, bahias))
                 .ToList();
         }
 
@@ -248,9 +251,11 @@ namespace ApiAutoLavado.Aplicacion.Services
             var operario = _operarios.ObtenerPorUsuarioId(usuarioId)
                 ?? throw new AccesoDenegadoException("El usuario autenticado no está vinculado a un operario.");
 
+            var (servicios, operarios, bahias) = ObtenerLookups();
+
             return _turnos.ObtenerPorOperario(operario.Id)
                 .OrderByDescending(t => t.FechaIngreso)
-                .Select(ConstruirDetalle)
+                .Select(t => ConstruirDetalle(t, servicios, operarios, bahias))
                 .ToList();
         }
 
@@ -266,10 +271,12 @@ namespace ApiAutoLavado.Aplicacion.Services
                 consulta = consulta.Where(t => DateOnly.FromDateTime(t.FechaIngreso) == fecha.Value);
             }
 
+            var (servicios, operarios, bahias) = ObtenerLookups();
+
             return consulta
                 .OrderByDescending(t => t.FechaIngreso)
                 .Take(300)
-                .Select(ConstruirDetalle)
+                .Select(t => ConstruirDetalle(t, servicios, operarios, bahias))
                 .ToList();
         }
 
@@ -612,10 +619,33 @@ namespace ApiAutoLavado.Aplicacion.Services
             });
         }
 
-        private TurnoDisplayResponse ConstruirDisplay(Turno turno)
+        /// <summary>
+        /// Precarga catálogos en memoria para evitar N+1 al construir varios turnos.
+        /// </summary>
+        private (
+            Dictionary<int, Servicio> Servicios,
+            Dictionary<int, Operario> Operarios,
+            Dictionary<int, Bahia> Bahias) ObtenerLookups()
         {
-            var servicio = _servicios.ObtenerPorId(turno.IdServicio);
-            var bahia = turno.IdBahia.HasValue ? _bahias.ObtenerPorId(turno.IdBahia.Value) : null;
+            return (
+                _servicios.ObtenerTodos().ToDictionary(s => s.Id),
+                _operarios.ObtenerTodos().ToDictionary(o => o.Id),
+                _bahias.ObtenerTodas().ToDictionary(b => b.Id)
+            );
+        }
+
+        private static TurnoDisplayResponse ConstruirDisplay(
+            Turno turno,
+            IReadOnlyDictionary<int, Servicio> servicios,
+            IReadOnlyDictionary<int, Bahia> bahias)
+        {
+            servicios.TryGetValue(turno.IdServicio, out var servicio);
+            Bahia? bahia = null;
+            if (turno.IdBahia.HasValue)
+            {
+                bahias.TryGetValue(turno.IdBahia.Value, out bahia);
+            }
+
             var secuencia = CatalogoFases.ObtenerSecuencia(servicio?.Fases);
             var estado = CatalogoFases.NormalizarFase(turno.EstadoActual, secuencia);
             var indice = IndiceDe(secuencia, estado);
@@ -633,11 +663,25 @@ namespace ApiAutoLavado.Aplicacion.Services
             };
         }
 
-        private TurnoDetalleResponse ConstruirDetalle(Turno turno)
+        private static TurnoDetalleResponse ConstruirDetalle(
+            Turno turno,
+            IReadOnlyDictionary<int, Servicio> servicios,
+            IReadOnlyDictionary<int, Operario> operarios,
+            IReadOnlyDictionary<int, Bahia> bahias)
         {
-            var servicio = _servicios.ObtenerPorId(turno.IdServicio);
-            var operario = turno.IdOperario.HasValue ? _operarios.ObtenerPorId(turno.IdOperario.Value) : null;
-            var bahia = turno.IdBahia.HasValue ? _bahias.ObtenerPorId(turno.IdBahia.Value) : null;
+            servicios.TryGetValue(turno.IdServicio, out var servicio);
+            Operario? operario = null;
+            if (turno.IdOperario.HasValue)
+            {
+                operarios.TryGetValue(turno.IdOperario.Value, out operario);
+            }
+
+            Bahia? bahia = null;
+            if (turno.IdBahia.HasValue)
+            {
+                bahias.TryGetValue(turno.IdBahia.Value, out bahia);
+            }
+
             var secuencia = CatalogoFases.ObtenerSecuencia(servicio?.Fases);
             var estado = CatalogoFases.NormalizarFase(turno.EstadoActual, secuencia);
             var indice = IndiceDe(secuencia, estado);
@@ -659,6 +703,12 @@ namespace ApiAutoLavado.Aplicacion.Services
                 FechaIngreso = turno.FechaIngreso,
                 HashConsulta = turno.HashConsulta
             };
+        }
+
+        private TurnoDetalleResponse ConstruirDetalle(Turno turno)
+        {
+            var (servicios, operarios, bahias) = ObtenerLookups();
+            return ConstruirDetalle(turno, servicios, operarios, bahias);
         }
 
         private TrazabilidadTurnoResponse ConstruirTrazabilidad(Turno turno)
