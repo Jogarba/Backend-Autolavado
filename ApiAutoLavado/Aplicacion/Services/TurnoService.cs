@@ -155,13 +155,36 @@ namespace ApiAutoLavado.Aplicacion.Services
                     }
                 }
 
+                // RF-02: si hay operario asignado y una bahía libre, el turno pasa
+                // directo a patio sin quedar en cola. La exclusión mutua real ocurre
+                // en IntentarOcupar (UPDATE condicional sobre bahías DISPONIBLES).
+                int? idBahiaAsignada = null;
+                if (idOperarioAsignado.HasValue)
+                {
+                    var bahiasLibres = _bahias.ObtenerTodas()
+                        .Where(b => b.Estado == EstadoBahia.Disponible)
+                        .OrderBy(b => b.Nombre)
+                        .ToList();
+
+                    foreach (var bahia in bahiasLibres)
+                    {
+                        if (_bahias.IntentarOcupar(bahia.Id, transaccion))
+                        {
+                            idBahiaAsignada = bahia.Id;
+                            break;
+                        }
+                    }
+                }
+
                 turno = new Turno
                 {
                     NumeroTurno = GenerarNumeroTurno(ahora),
                     Placa = vehiculo.Placa,
                     IdServicio = servicio.Id,
                     IdOperario = idOperarioAsignado,
-                    // RN-04: sin operario libre el turno espera en cola; con operario queda "Por Iniciar".
+                    IdBahia = idBahiaAsignada,
+                    // RN-04: sin operario libre el turno espera en cola; si hay
+                    // operario y bahía pasa directo a patio ("Por Iniciar").
                     EstadoActual = CatalogoFases.FaseInicial,
                     FechaIngreso = ahora,
                     HashConsulta = string.Empty
