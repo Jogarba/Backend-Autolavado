@@ -16,7 +16,7 @@ namespace ApiAutoLavado.Aplicacion.Services
 
         IReadOnlyCollection<TurnoDetalleResponse> ObtenerHistorialOperario(int usuarioId);
 
-        IReadOnlyCollection<TurnoDetalleResponse> ObtenerHistorial();
+        IReadOnlyCollection<TurnoDetalleResponse> ObtenerHistorial(System.DateOnly? fecha = null);
 
         TurnoResponse AsignarBahia(long idTurno, int idBahia, int usuarioId, bool esAdministrador);
 
