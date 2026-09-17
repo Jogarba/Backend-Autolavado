@@ -18,6 +18,7 @@ namespace ApiAutoLavado.UI.Controllers
         }
 
         [HttpGet]
+        [AllowAnonymous]
         public ActionResult<IEnumerable<ServicioResponse>> ObtenerTodos()
         {
             return Ok(_servicioService.ObtenerTodos());
