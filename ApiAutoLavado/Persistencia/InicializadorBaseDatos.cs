@@ -128,7 +128,7 @@ namespace ApiAutoLavado.Persistencia
                     AsegurarEsquemaTurnos(conexion);
                     AsegurarFasesServicios(conexion);
                     SembrarUsuarioAdministrador(conexion);
-                    SembrarOperarios(conexion);
+                    // Los operarios no se siembran: los crea el administrador desde el panel.
                     SembrarServicios(conexion);
                     SembrarBahias(conexion);
                     SincronizarEstadosHuerfanos(conexion);
@@ -349,55 +349,6 @@ namespace ApiAutoLavado.Persistencia
         }
 
 
-
-        private static void SembrarOperarios(IDbConnection conexion)
-        {
-            if (conexion.ExecuteScalar<long>("SELECT COUNT(*) FROM operarios") > 0)
-            {
-                return;
-            }
-
-            var contrasena = Environment.GetEnvironmentVariable("OPERARIO_CONTRASENA") ?? "Operario123*";
-            var hash = BCrypt.Net.BCrypt.HashPassword(contrasena);
-
-            var operarios = new[]
-            {
-                new { Nombres = "Andrés", Apellidos = "Díaz", Documento = "1001004", Telefono = "3004444444", Activo = 1 },
-                new { Nombres = "Carlos", Apellidos = "Ruiz", Documento = "1001003", Telefono = "3003333333", Activo = 0 },
-                new { Nombres = "Juan", Apellidos = "Pérez", Documento = "1001001", Telefono = "3001111111", Activo = 1 },
-                new { Nombres = "María", Apellidos = "Gómez", Documento = "1001002", Telefono = "3002222222", Activo = 1 }
-            };
-
-            foreach (var operario in operarios)
-            {
-                // Cada operario sembrado recibe credenciales para poder iniciar sesión (RF-03).
-                conexion.Execute(
-                    "INSERT INTO usuarios (nombre_usuario, contrasena_hash, rol, activo, fecha_creacion) " +
-                    "VALUES (@NombreUsuario, @ContrasenaHash, 'OPERARIO', @Activo, UTC_TIMESTAMP())",
-                    new
-                    {
-                        NombreUsuario = operario.Documento,
-                        ContrasenaHash = hash,
-                        operario.Activo
-                    });
-
-                var usuarioId = conexion.ExecuteScalar<int>("SELECT LAST_INSERT_ID()");
-
-                conexion.Execute(
-                    "INSERT INTO operarios (nombres, apellidos, documento, telefono, usuario_id, activo, estado) " +
-                    "VALUES (@Nombres, @Apellidos, @Documento, @Telefono, @UsuarioId, @Activo, @Estado)",
-                    new
-                    {
-                        operario.Nombres,
-                        operario.Apellidos,
-                        operario.Documento,
-                        operario.Telefono,
-                        UsuarioId = usuarioId,
-                        operario.Activo,
-                        Estado = operario.Activo == 1 ? "DISPONIBLE" : "INACTIVO"
-                    });
-            }
-        }
 
         private static void SembrarServicios(IDbConnection conexion)
         {
