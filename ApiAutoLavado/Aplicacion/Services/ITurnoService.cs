@@ -16,6 +16,8 @@ namespace ApiAutoLavado.Aplicacion.Services
 
         IReadOnlyCollection<TurnoDetalleResponse> ObtenerHistorialOperario(int usuarioId);
 
+        IReadOnlyCollection<TurnoDetalleResponse> ObtenerHistorial();
+
         TurnoResponse AsignarBahia(long idTurno, int idBahia, int usuarioId, bool esAdministrador);
 
         TurnoResponse ActualizarFase(long id, string nuevaFase, int usuarioId, bool esAdministrador);

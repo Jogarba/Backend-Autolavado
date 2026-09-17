@@ -39,6 +39,13 @@ namespace ApiAutoLavado.UI.Controllers
             return Ok(_turnoService.ObtenerTablero());
         }
 
+        [HttpGet("historial")]
+        [Authorize(Roles = "Administrador")]
+        public ActionResult<IEnumerable<TurnoDetalleResponse>> ObtenerHistorial()
+        {
+            return Ok(_turnoService.ObtenerHistorial());
+        }
+
         [HttpGet("display")]
         [AllowAnonymous]
         public ActionResult<IEnumerable<TurnoDisplayResponse>> ObtenerDisplay()

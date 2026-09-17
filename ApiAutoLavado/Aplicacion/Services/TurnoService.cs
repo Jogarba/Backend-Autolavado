@@ -254,6 +254,18 @@ namespace ApiAutoLavado.Aplicacion.Services
                 .ToList();
         }
 
+        /// <summary>
+        /// Historial completo de turnos (activos y cerrados) para el panel del administrador.
+        /// </summary>
+        public IReadOnlyCollection<TurnoDetalleResponse> ObtenerHistorial()
+        {
+            return _turnos.ObtenerTodos()
+                .OrderByDescending(t => t.FechaIngreso)
+                .Take(300)
+                .Select(ConstruirDetalle)
+                .ToList();
+        }
+
         public TurnoResponse ActualizarFase(long id, string nuevaFase, int usuarioId, bool esAdministrador)
         {
             var turno = _turnos.ObtenerPorId(id)
