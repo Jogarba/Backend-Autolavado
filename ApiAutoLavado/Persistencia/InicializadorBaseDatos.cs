@@ -123,7 +123,11 @@ namespace ApiAutoLavado.Persistencia
                 }
                 catch (Exception ex) when (intento < maxIntentos)
                 {
-                    Console.WriteLine($"[BaseDatos] Advertencia: intento {intento}/{maxIntentos} falló al conectar a MySQL: {ex.Message}. Reintentando en 3s...");
+                    var detalle = ex.InnerException is null
+                        ? ex.Message
+                        : $"{ex.Message} ({ex.InnerException.GetType().Name}: {ex.InnerException.Message})";
+
+                    Console.WriteLine($"[BaseDatos] Advertencia: intento {intento}/{maxIntentos} falló al conectar a MySQL: {detalle}. Reintentando en 3s...");
                     Thread.Sleep(3000);
                 }
             }

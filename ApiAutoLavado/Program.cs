@@ -205,7 +205,14 @@ try
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"[Inicializador] Advertencia al inicializar base de datos: {ex.Message}");
+    var detalle = ex.InnerException is null
+        ? ex.Message
+        : $"{ex.Message} ({ex.InnerException.GetType().Name}: {ex.InnerException.Message})";
+
+    Console.WriteLine($"[Inicializador] Advertencia al inicializar base de datos: {detalle}");
+
+    // Solo ante un fallo se sondea la red para saber si es DNS, timeout o rechazo.
+    await DiagnosticoConexion.ProbarAsync(cadenaConexion);
 }
 
 // 0. Manejo global de excepciones (siempre el primero)
