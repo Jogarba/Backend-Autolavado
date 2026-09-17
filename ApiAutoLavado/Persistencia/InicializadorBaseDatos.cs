@@ -124,6 +124,7 @@ namespace ApiAutoLavado.Persistencia
                     }
 
                     AsegurarColumnas(conexion);
+                    AsegurarEsquemaBahias(conexion);
                     AsegurarFasesServicios(conexion);
                     SembrarUsuarioAdministrador(conexion);
                     SembrarOperarios(conexion);
@@ -229,6 +230,52 @@ namespace ApiAutoLavado.Persistencia
                 conexion.Execute(
                     "ALTER TABLE turnos ADD CONSTRAINT turnos_ibfk_4 " +
                     "FOREIGN KEY (id_bahia) REFERENCES bahias (id_bahia)");
+            }
+        }
+
+        private static void AsegurarEsquemaBahias(IDbConnection conexion)
+        {
+            var existeTabla = conexion.ExecuteScalar<long>(
+                "SELECT COUNT(*) FROM information_schema.TABLES " +
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'bahias'");
+
+            if (existeTabla == 0)
+            {
+                return;
+            }
+
+            long ContarColumna(string columna) => conexion.ExecuteScalar<long>(
+                "SELECT COUNT(*) FROM information_schema.COLUMNS " +
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'bahias' AND COLUMN_NAME = @Columna",
+                new { Columna = columna });
+
+            // Bases creadas antes del incremento 4 usaban 'nombre_bahia' y 'tipo'.
+            // El repositorio actual espera 'nombre' y 'fecha_creacion'.
+            if (ContarColumna("nombre") == 0)
+            {
+                if (ContarColumna("nombre_bahia") > 0)
+                {
+                    conexion.Execute(
+                        "ALTER TABLE bahias CHANGE COLUMN nombre_bahia nombre VARCHAR(50) NOT NULL");
+                }
+                else
+                {
+                    conexion.Execute(
+                        "ALTER TABLE bahias ADD COLUMN nombre VARCHAR(50) NOT NULL DEFAULT ''");
+                }
+            }
+
+            // 'tipo' ya no se utiliza: se deja opcional para no romper los INSERT actuales.
+            if (ContarColumna("tipo") > 0)
+            {
+                conexion.Execute(
+                    "ALTER TABLE bahias MODIFY COLUMN tipo VARCHAR(30) NULL DEFAULT NULL");
+            }
+
+            if (ContarColumna("fecha_creacion") == 0)
+            {
+                conexion.Execute(
+                    "ALTER TABLE bahias ADD COLUMN fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
             }
         }
 
