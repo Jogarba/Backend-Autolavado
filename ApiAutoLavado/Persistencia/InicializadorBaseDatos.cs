@@ -156,6 +156,14 @@ namespace ApiAutoLavado.Persistencia
                 "AND id_operario NOT IN (" +
                 "    SELECT id_operario FROM turnos " +
                 "    WHERE id_operario IS NOT NULL AND estado_actual NOT IN ('FINALIZADO', 'CANCELADO'));");
+
+            // Bahías ocupadas sin un turno activo asociado (liberación que no se aplicó).
+            conexion.Execute(
+                "UPDATE bahias SET estado = 'DISPONIBLE' " +
+                "WHERE estado = 'OCUPADA' " +
+                "AND id_bahia NOT IN (" +
+                "    SELECT id_bahia FROM turnos " +
+                "    WHERE id_bahia IS NOT NULL AND estado_actual NOT IN ('FINALIZADO', 'CANCELADO'));");
         }
 
         private static void AsegurarFasesServicios(IDbConnection conexion)
