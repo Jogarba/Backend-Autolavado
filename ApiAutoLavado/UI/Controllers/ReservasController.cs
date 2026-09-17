@@ -50,7 +50,7 @@ namespace ApiAutoLavado.UI.Controllers
         }
 
         [HttpGet]
-        [Authorize]
+        [Authorize(Roles = "Administrador")]
         public ActionResult<IEnumerable<ReservaResponse>> ObtenerTodas([FromQuery] string? fecha, [FromQuery] string? placa)
         {
             if (!string.IsNullOrWhiteSpace(placa))
@@ -67,7 +67,7 @@ namespace ApiAutoLavado.UI.Controllers
         }
 
         [HttpPatch("{id:long}/cancelar")]
-        [AllowAnonymous]
+        [Authorize(Roles = "Administrador")]
         public ActionResult<ReservaResponse> Cancelar(long id)
         {
             var response = _reservaService.Cancelar(id);
@@ -75,7 +75,7 @@ namespace ApiAutoLavado.UI.Controllers
         }
 
         [HttpPost("{id:long}/iniciar-turno")]
-        [Authorize]
+        [Authorize(Roles = "Administrador")]
         public ActionResult<TurnoCreadoResponse> IniciarTurno(long id)
         {
             var turno = _reservaService.ConvertirEnTurno(id);

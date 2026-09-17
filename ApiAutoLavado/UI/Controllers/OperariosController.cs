@@ -25,7 +25,7 @@ namespace ApiAutoLavado.UI.Controllers
         }
 
         [HttpGet("activos")]
-        [Authorize]
+        [Authorize(Roles = "Administrador")]
         public ActionResult<IEnumerable<OperarioResponse>> ObtenerActivos()
         {
             return Ok(_operarioService.ObtenerActivos());

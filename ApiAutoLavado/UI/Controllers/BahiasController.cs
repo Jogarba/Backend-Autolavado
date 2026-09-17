@@ -19,6 +19,7 @@ namespace ApiAutoLavado.UI.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Administrador")]
         public ActionResult<IEnumerable<BahiaResponse>> ObtenerTodas()
         {
             return Ok(_bahiaService.ObtenerTodas());

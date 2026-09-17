@@ -26,12 +26,14 @@ namespace ApiAutoLavado.UI.Controllers
         }
 
         [HttpGet("activos")]
+        [Authorize(Roles = "Administrador")]
         public ActionResult<IEnumerable<TurnoResponse>> ObtenerActivos()
         {
             return Ok(_turnoService.ObtenerActivos());
         }
 
         [HttpGet("tablero")]
+        [Authorize(Roles = "Administrador")]
         public ActionResult<TableroTurnosResponse> ObtenerTablero()
         {
             return Ok(_turnoService.ObtenerTablero());
@@ -45,6 +47,7 @@ namespace ApiAutoLavado.UI.Controllers
         }
 
         [HttpPost]
+        [Authorize(Roles = "Administrador")]
         public ActionResult<TurnoCreadoResponse> Crear([FromBody] CrearTurnoRequest request)
         {
             var response = _turnoService.Crear(request);
