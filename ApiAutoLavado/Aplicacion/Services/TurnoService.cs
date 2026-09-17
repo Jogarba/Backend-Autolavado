@@ -366,6 +366,7 @@ namespace ApiAutoLavado.Aplicacion.Services
             }
 
             NotificarCambio(turno);
+            NotificarBahiaAsignada(turno);
             return turno.ToResponse();
         }
 
@@ -409,6 +410,7 @@ namespace ApiAutoLavado.Aplicacion.Services
                     $"El turno {turno.NumeroTurno} ya está {estadoAnterior}.");
             }
 
+            Turno? turnoConBahia = null;
             using var transaccion = _transacciones.Iniciar();
             try
             {
@@ -455,7 +457,7 @@ namespace ApiAutoLavado.Aplicacion.Services
                 {
                     var idBahiaLibre = turno.IdBahia.Value;
                     _bahias.Liberar(idBahiaLibre, transaccion);
-                    DisponerBahiaEnEspera(idBahiaLibre, transaccion, turnoEncadenado);
+                    turnoConBahia = DisponerBahiaEnEspera(idBahiaLibre, transaccion, turnoEncadenado);
                 }
 
                 transaccion.Confirmar();
@@ -468,6 +470,12 @@ namespace ApiAutoLavado.Aplicacion.Services
 
             NotificarCambio(turno);
 
+            if (turnoConBahia is not null)
+            {
+                NotificarCambio(turnoConBahia);
+                NotificarBahiaAsignada(turnoConBahia);
+            }
+
             return turno.ToResponse();
         }
 
@@ -475,7 +483,7 @@ namespace ApiAutoLavado.Aplicacion.Services
         /// Asigna una bahía recién liberada al turno más antiguo que tenga operario
         /// asignado y aún no tenga bahía (el que quedó en cola esperando).
         /// </summary>
-        private void DisponerBahiaEnEspera(int idBahiaLibre, ITransaccionBd transaccion, Turno? candidato = null)
+        private Turno? DisponerBahiaEnEspera(int idBahiaLibre, ITransaccionBd transaccion, Turno? candidato = null)
         {
             // FIFO: primero el turno que lleva más tiempo esperando bahía; si no hay,
             // se usa el turno recién encadenado al operario que acaba de liberarse.
@@ -487,13 +495,45 @@ namespace ApiAutoLavado.Aplicacion.Services
 
             if (esperando is null)
             {
+                return null;
+            }
+
+            if (!_bahias.IntentarOcupar(idBahiaLibre, transaccion))
+            {
+                return null;
+            }
+
+            _turnos.AsignarBahia(esperando.Id, idBahiaLibre, transaccion);
+            esperando.IdBahia = idBahiaLibre;
+            return esperando;
+        }
+
+        private void NotificarBahiaAsignada(Turno turno)
+        {
+            if (!turno.IdBahia.HasValue)
+            {
                 return;
             }
 
-            if (_bahias.IntentarOcupar(idBahiaLibre, transaccion))
+            _ = Task.Run(async () =>
             {
-                _turnos.AsignarBahia(esperando.Id, idBahiaLibre, transaccion);
-            }
+                try
+                {
+                    var bahia = _bahias.ObtenerPorId(turno.IdBahia.Value);
+                    var evento = new BahiaAsignadaResponse
+                    {
+                        IdTurno = turno.Id,
+                        NumeroTurno = turno.NumeroTurno,
+                        Placa = turno.Placa,
+                        IdOperario = turno.IdOperario,
+                        IdBahia = turno.IdBahia.Value,
+                        NombreBahia = bahia?.Nombre ?? string.Empty
+                    };
+
+                    await _realtimeNotifier.NotificarBahiaAsignadaAsync(evento);
+                }
+                catch { /* Logging silencioso */ }
+            });
         }
 
         private void NotificarCambio(Turno turno)

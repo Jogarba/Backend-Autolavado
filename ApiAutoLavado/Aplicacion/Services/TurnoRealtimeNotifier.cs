@@ -30,6 +30,25 @@ namespace ApiAutoLavado.Aplicacion.Services
             await _hubContext.Clients.All.SendAsync("TurnoGlobalActualizado", publica);
         }
 
+        public async Task NotificarBahiaAsignadaAsync(BahiaAsignadaResponse evento)
+        {
+            // El operario asignado, el turno y el vehículo reciben el evento directo.
+            if (evento.IdOperario.HasValue)
+            {
+                await _hubContext.Clients
+                    .Group($"operario-{evento.IdOperario.Value}")
+                    .SendAsync("BahiaAsignada", evento);
+            }
+
+            await _hubContext.Clients
+                .Group($"turno-{evento.IdTurno}")
+                .SendAsync("BahiaAsignada", evento);
+
+            await _hubContext.Clients
+                .Group(evento.Placa.ToUpperInvariant())
+                .SendAsync("BahiaAsignada", evento);
+        }
+
         public async Task NotificarTurnosActualizadosAsync()
         {
             await _hubContext.Clients.All.SendAsync("TurnosRecargados");

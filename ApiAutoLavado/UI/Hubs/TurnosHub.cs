@@ -20,5 +20,27 @@ namespace ApiAutoLavado.UI.Hubs
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, identificador.Trim().ToUpperInvariant());
             }
         }
+
+        /// <summary>El operario se suscribe a los eventos de su propia cuenta.</summary>
+        public async Task SuscribirOperario(int idOperario)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"operario-{idOperario}");
+        }
+
+        public async Task DesuscribirOperario(int idOperario)
+        {
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"operario-{idOperario}");
+        }
+
+        /// <summary>Suscribe la conexión a los eventos de un turno específico.</summary>
+        public async Task SuscribirTurno(long idTurno)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"turno-{idTurno}");
+        }
+
+        public async Task DesuscribirTurno(long idTurno)
+        {
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"turno-{idTurno}");
+        }
     }
 }
