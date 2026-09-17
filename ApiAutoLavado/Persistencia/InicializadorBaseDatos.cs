@@ -125,6 +125,7 @@ namespace ApiAutoLavado.Persistencia
 
                     AsegurarColumnas(conexion);
                     AsegurarEsquemaBahias(conexion);
+                    AsegurarEsquemaTurnos(conexion);
                     AsegurarFasesServicios(conexion);
                     SembrarUsuarioAdministrador(conexion);
                     SembrarOperarios(conexion);
@@ -277,6 +278,40 @@ namespace ApiAutoLavado.Persistencia
                 conexion.Execute(
                     "ALTER TABLE bahias ADD COLUMN fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP");
             }
+        }
+
+        private static void AsegurarEsquemaTurnos(IDbConnection conexion)
+        {
+            var existeTabla = conexion.ExecuteScalar<long>(
+                "SELECT COUNT(*) FROM information_schema.TABLES " +
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'turnos'");
+
+            if (existeTabla == 0)
+            {
+                return;
+            }
+
+            // Bases creadas con el esquema previo al incremento 4 tenían columnas
+            // NOT NULL que ya no se escriben (la bahía se asigna después, el
+            // operario puede quedar en cola y el tipo/teléfono viven en vehiculos).
+            void HacerNula(string columna, string definicion)
+            {
+                var esNotNula = conexion.ExecuteScalar<long>(
+                    "SELECT COUNT(*) FROM information_schema.COLUMNS " +
+                    "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'turnos' " +
+                    "AND COLUMN_NAME = @Columna AND IS_NULLABLE = 'NO'",
+                    new { Columna = columna });
+
+                if (esNotNula > 0)
+                {
+                    conexion.Execute($"ALTER TABLE turnos MODIFY COLUMN {columna} {definicion} NULL");
+                }
+            }
+
+            HacerNula("id_operario", "INT");
+            HacerNula("id_bahia", "INT");
+            HacerNula("tipo_vehiculo", "VARCHAR(20)");
+            HacerNula("telefono_cliente", "VARCHAR(10)");
         }
 
         private static void SembrarUsuarioAdministrador(IDbConnection conexion)
