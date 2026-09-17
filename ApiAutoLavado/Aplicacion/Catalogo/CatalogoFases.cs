@@ -12,11 +12,12 @@ namespace ApiAutoLavado.Aplicacion.Catalogo
     public static class CatalogoFases
     {
         public const string FaseInicial = "EN_COLA";
+        public const string FasePatio = "EN_PATIO";
         public const string FaseFinal = "LISTO";
 
         public static readonly string[] SecuenciaPorDefecto =
         {
-            "EN_COLA", "ENJABONADO", "ENJUAGADO", "SECADO", "LISTO"
+            "EN_COLA", "EN_PATIO", "ENJABONADO", "ENJUAGADO", "SECADO", "LISTO"
         };
 
         private static readonly string[] Terminales =
@@ -27,7 +28,8 @@ namespace ApiAutoLavado.Aplicacion.Catalogo
         private static readonly IReadOnlyDictionary<string, (string Titulo, string Descripcion)> Metadatos =
             new Dictionary<string, (string, string)>(StringComparer.OrdinalIgnoreCase)
             {
-                ["EN_COLA"] = ("Por Iniciar", "Vehículo ingresado y registrado en cola."),
+                ["EN_COLA"] = ("En Cola", "Vehículo registrado esperando bahía u operario."),
+                ["EN_PATIO"] = ("En Patio", "Vehículo ubicado en la bahía, listo para iniciar el servicio."),
                 ["ENJABONADO"] = ("Enjabonado", "Aplicación de shampoo especializado y espumado activo."),
                 ["ENJUAGADO"] = ("Enjuagado", "Retiro de jabón con agua a alta presión."),
                 ["PULIDO"] = ("Pulido", "Pulido y abrillantado de la carrocería."),

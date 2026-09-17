@@ -184,8 +184,10 @@ namespace ApiAutoLavado.Aplicacion.Services
                     IdOperario = idOperarioAsignado,
                     IdBahia = idBahiaAsignada,
                     // RN-04: sin operario libre el turno espera en cola; si hay
-                    // operario y bahía pasa directo a patio ("Por Iniciar").
-                    EstadoActual = CatalogoFases.FaseInicial,
+                    // operario y bahía pasa directo a "En Patio" (por iniciar servicio).
+                    EstadoActual = idBahiaAsignada.HasValue
+                        ? CatalogoFases.FasePatio
+                        : CatalogoFases.FaseInicial,
                     FechaIngreso = ahora,
                     HashConsulta = string.Empty
                 };
@@ -380,6 +382,13 @@ namespace ApiAutoLavado.Aplicacion.Services
                 _turnos.AsignarBahia(idTurno, idBahia, transaccion);
                 turno.IdBahia = idBahia;
 
+                // Si el turno aún estaba en cola, al obtener bahía pasa a "En Patio".
+                if (string.Equals(turno.EstadoActual, CatalogoFases.FaseInicial, StringComparison.OrdinalIgnoreCase)
+                    && _turnos.IntentarCambiarEstado(idTurno, CatalogoFases.FaseInicial, CatalogoFases.FasePatio, transaccion))
+                {
+                    turno.EstadoActual = CatalogoFases.FasePatio;
+                }
+
                 transaccion.Confirmar();
             }
             catch
@@ -528,6 +537,14 @@ namespace ApiAutoLavado.Aplicacion.Services
 
             _turnos.AsignarBahia(esperando.Id, idBahiaLibre, transaccion);
             esperando.IdBahia = idBahiaLibre;
+
+            // El turno encolado que recibe bahía pasa a "En Patio".
+            if (string.Equals(esperando.EstadoActual, CatalogoFases.FaseInicial, StringComparison.OrdinalIgnoreCase)
+                && _turnos.IntentarCambiarEstado(esperando.Id, CatalogoFases.FaseInicial, CatalogoFases.FasePatio, transaccion))
+            {
+                esperando.EstadoActual = CatalogoFases.FasePatio;
+            }
+
             return esperando;
         }
 
@@ -644,7 +661,8 @@ namespace ApiAutoLavado.Aplicacion.Services
             string mensaje = estado switch
             {
                 "EN_COLA" when turno.IdOperario is null => "Tu vehículo está en cola para ingresar al área de lavado.",
-                "EN_COLA" => "Tu vehículo está por iniciar el proceso de lavado.",
+                "EN_COLA" => "Tu vehículo está en cola para ingresar al área de lavado.",
+                "EN_PATIO" => "Tu vehículo ya está en el patio; el lavado está por comenzar.",
                 "LISTO" or "FINALIZADO" => "Tu vehículo ya está listo. Puedes pasar a recogerlo.",
                 "CANCELADO" => "El turno de este vehículo ha sido cancelado.",
                 _ => $"Tu vehículo se encuentra en fase: {CatalogoFases.Titulo(estado)}."

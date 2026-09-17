@@ -39,7 +39,7 @@ namespace ApiAutoLavado.Persistencia
                 nombre VARCHAR(50) NOT NULL,
                 tarifa_base DECIMAL(10,2) NOT NULL,
                 tiempo_estimado_min INT NOT NULL,
-                fases VARCHAR(255) NOT NULL DEFAULT 'EN_COLA,ENJABONADO,ENJUAGADO,SECADO,LISTO',
+                fases VARCHAR(255) NOT NULL DEFAULT 'EN_COLA,EN_PATIO,ENJABONADO,ENJUAGADO,SECADO,LISTO',
                 PRIMARY KEY (id_servicio),
                 UNIQUE KEY nombre (nombre)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -174,13 +174,22 @@ namespace ApiAutoLavado.Persistencia
             conexion.Execute(
                 """
                 UPDATE servicios SET fases = CASE nombre
-                    WHEN 'LAVADO_GENERAL' THEN 'EN_COLA,ENJABONADO,ENJUAGADO,SECADO,LISTO'
-                    WHEN 'POLICHADO'      THEN 'EN_COLA,ENJABONADO,ENJUAGADO,PULIDO,SECADO,LISTO'
-                    WHEN 'DETAILING'      THEN 'EN_COLA,ENJABONADO,ENJUAGADO,PULIDO,DESINFECCION,SECADO,LISTO'
-                    WHEN 'DESINFECCION'   THEN 'EN_COLA,DESINFECCION,SECADO,LISTO'
-                    ELSE 'EN_COLA,ENJABONADO,ENJUAGADO,SECADO,LISTO'
+                    WHEN 'LAVADO_GENERAL' THEN 'EN_COLA,EN_PATIO,ENJABONADO,ENJUAGADO,SECADO,LISTO'
+                    WHEN 'POLICHADO'      THEN 'EN_COLA,EN_PATIO,ENJABONADO,ENJUAGADO,PULIDO,SECADO,LISTO'
+                    WHEN 'DETAILING'      THEN 'EN_COLA,EN_PATIO,ENJABONADO,ENJUAGADO,PULIDO,DESINFECCION,SECADO,LISTO'
+                    WHEN 'DESINFECCION'   THEN 'EN_COLA,EN_PATIO,DESINFECCION,SECADO,LISTO'
+                    ELSE 'EN_COLA,EN_PATIO,ENJABONADO,ENJUAGADO,SECADO,LISTO'
                 END
                 WHERE fases IS NULL OR fases = '';
+                """);
+
+            // Servicios existentes: inserta "EN_PATIO" justo después de "EN_COLA"
+            // para reflejar el nuevo estado intermedio (una sola vez).
+            conexion.Execute(
+                """
+                UPDATE servicios
+                SET fases = REPLACE(fases, 'EN_COLA', 'EN_COLA,EN_PATIO')
+                WHERE fases LIKE '%EN_COLA%' AND fases NOT LIKE '%EN_PATIO%';
                 """);
         }
 
@@ -312,6 +321,11 @@ namespace ApiAutoLavado.Persistencia
             HacerNula("id_bahia", "INT");
             HacerNula("tipo_vehiculo", "VARCHAR(20)");
             HacerNula("telefono_cliente", "VARCHAR(10)");
+
+            // Consistencia del nuevo estado: un turno con bahía no puede estar "EN_COLA".
+            conexion.Execute(
+                "UPDATE turnos SET estado_actual = 'EN_PATIO' " +
+                "WHERE id_bahia IS NOT NULL AND estado_actual = 'EN_COLA'");
         }
 
         private static void SembrarUsuarioAdministrador(IDbConnection conexion)
@@ -399,28 +413,28 @@ namespace ApiAutoLavado.Persistencia
                     Nombre = "LAVADO_GENERAL",
                     Tarifa = 15_000m,
                     Tiempo = 30,
-                    Fases = "EN_COLA,ENJABONADO,ENJUAGADO,SECADO,LISTO"
+                    Fases = "EN_COLA,EN_PATIO,ENJABONADO,ENJUAGADO,SECADO,LISTO"
                 },
                 new
                 {
                     Nombre = "POLICHADO",
                     Tarifa = 80_000m,
                     Tiempo = 120,
-                    Fases = "EN_COLA,ENJABONADO,ENJUAGADO,PULIDO,SECADO,LISTO"
+                    Fases = "EN_COLA,EN_PATIO,ENJABONADO,ENJUAGADO,PULIDO,SECADO,LISTO"
                 },
                 new
                 {
                     Nombre = "DETAILING",
                     Tarifa = 150_000m,
                     Tiempo = 240,
-                    Fases = "EN_COLA,ENJABONADO,ENJUAGADO,PULIDO,DESINFECCION,SECADO,LISTO"
+                    Fases = "EN_COLA,EN_PATIO,ENJABONADO,ENJUAGADO,PULIDO,DESINFECCION,SECADO,LISTO"
                 },
                 new
                 {
                     Nombre = "DESINFECCION",
                     Tarifa = 40_000m,
                     Tiempo = 45,
-                    Fases = "EN_COLA,DESINFECCION,SECADO,LISTO"
+                    Fases = "EN_COLA,EN_PATIO,DESINFECCION,SECADO,LISTO"
                 }
             };
 
