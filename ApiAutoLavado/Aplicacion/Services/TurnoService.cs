@@ -68,11 +68,11 @@ namespace ApiAutoLavado.Aplicacion.Services
 
             var enAtencion = new List<TurnoDetalleResponse>();
             var enCola = new List<TurnoDetalleResponse>();
-            var (servicios, operarios, bahias) = ObtenerLookups();
+            var (servicios, operarios, bahias, vehiculos) = ObtenerLookups();
 
             foreach (var turno in activos)
             {
-                var detalle = ConstruirDetalle(turno, servicios, operarios, bahias);
+                var detalle = ConstruirDetalle(turno, servicios, operarios, bahias, vehiculos);
                 // "En atención" solo cuando ya tiene bahía (el trabajo arrancó);
                 // si aún espera bahía, aunque tenga operario, cuenta como cola.
                 if (turno.IdBahia.HasValue)
@@ -94,7 +94,7 @@ namespace ApiAutoLavado.Aplicacion.Services
 
         public IReadOnlyCollection<TurnoDisplayResponse> ObtenerDisplay()
         {
-            var (servicios, _, bahias) = ObtenerLookups();
+            var (servicios, _, bahias, _) = ObtenerLookups();
 
             return _turnos.ObtenerTodos()
                 .Where(t => !EsFinalizado(t.EstadoActual))
@@ -254,11 +254,11 @@ namespace ApiAutoLavado.Aplicacion.Services
             var operario = _operarios.ObtenerPorUsuarioId(usuarioId)
                 ?? throw new AccesoDenegadoException("El usuario autenticado no está vinculado a un operario.");
 
-            var (servicios, operarios, bahias) = ObtenerLookups();
+            var (servicios, operarios, bahias, vehiculos) = ObtenerLookups();
 
             return _turnos.ObtenerPorOperario(operario.Id)
                 .OrderByDescending(t => t.FechaIngreso)
-                .Select(t => ConstruirDetalle(t, servicios, operarios, bahias))
+                .Select(t => ConstruirDetalle(t, servicios, operarios, bahias, vehiculos))
                 .ToList();
         }
 
@@ -274,12 +274,12 @@ namespace ApiAutoLavado.Aplicacion.Services
                 consulta = consulta.Where(t => DateOnly.FromDateTime(t.FechaIngreso) == fecha.Value);
             }
 
-            var (servicios, operarios, bahias) = ObtenerLookups();
+            var (servicios, operarios, bahias, vehiculos) = ObtenerLookups();
 
             return consulta
                 .OrderByDescending(t => t.FechaIngreso)
                 .Take(300)
-                .Select(t => ConstruirDetalle(t, servicios, operarios, bahias))
+                .Select(t => ConstruirDetalle(t, servicios, operarios, bahias, vehiculos))
                 .ToList();
         }
 
@@ -690,12 +690,14 @@ namespace ApiAutoLavado.Aplicacion.Services
         private (
             Dictionary<int, Servicio> Servicios,
             Dictionary<int, Operario> Operarios,
-            Dictionary<int, Bahia> Bahias) ObtenerLookups()
+            Dictionary<int, Bahia> Bahias,
+            Dictionary<string, Vehiculo> Vehiculos) ObtenerLookups()
         {
             return (
                 _servicios.ObtenerTodos().ToDictionary(s => s.Id),
                 _operarios.ObtenerTodos().ToDictionary(o => o.Id),
-                _bahias.ObtenerTodas().ToDictionary(b => b.Id)
+                _bahias.ObtenerTodas().ToDictionary(b => b.Id),
+                _vehiculos.ObtenerTodos().ToDictionary(v => v.Placa, StringComparer.OrdinalIgnoreCase)
             );
         }
 
@@ -732,9 +734,11 @@ namespace ApiAutoLavado.Aplicacion.Services
             Turno turno,
             IReadOnlyDictionary<int, Servicio> servicios,
             IReadOnlyDictionary<int, Operario> operarios,
-            IReadOnlyDictionary<int, Bahia> bahias)
+            IReadOnlyDictionary<int, Bahia> bahias,
+            IReadOnlyDictionary<string, Vehiculo> vehiculos)
         {
             servicios.TryGetValue(turno.IdServicio, out var servicio);
+            vehiculos.TryGetValue(turno.Placa, out var vehiculo);
             Operario? operario = null;
             if (turno.IdOperario.HasValue)
             {
@@ -756,6 +760,7 @@ namespace ApiAutoLavado.Aplicacion.Services
                 Id = turno.Id,
                 NumeroTurno = turno.NumeroTurno,
                 Placa = turno.Placa,
+                TelefonoCliente = vehiculo?.TelefonoCliente,
                 IdServicio = turno.IdServicio,
                 NombreServicio = servicio?.Nombre ?? "LAVADO_GENERAL",
                 IdBahia = turno.IdBahia,
@@ -772,8 +777,8 @@ namespace ApiAutoLavado.Aplicacion.Services
 
         private TurnoDetalleResponse ConstruirDetalle(Turno turno)
         {
-            var (servicios, operarios, bahias) = ObtenerLookups();
-            return ConstruirDetalle(turno, servicios, operarios, bahias);
+            var (servicios, operarios, bahias, vehiculos) = ObtenerLookups();
+            return ConstruirDetalle(turno, servicios, operarios, bahias, vehiculos);
         }
 
         private TrazabilidadTurnoResponse ConstruirTrazabilidad(Turno turno)

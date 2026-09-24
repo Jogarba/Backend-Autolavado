@@ -23,6 +23,8 @@ namespace ApiAutoLavado.Aplicacion.Dtos
 
         public string Placa { get; set; } = string.Empty;
 
+        public string? TelefonoCliente { get; set; }
+
         public int IdServicio { get; set; }
 
         public string NombreServicio { get; set; } = string.Empty;
