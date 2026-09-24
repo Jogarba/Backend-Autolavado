@@ -22,6 +22,7 @@ namespace ApiAutoLavado.Aplicacion.Services
         private readonly IServicioRepository _servicios;
         private readonly ITurnoRepository _turnos;
         private readonly IBahiaRepository _bahias;
+        private readonly IReservaRepository _reservas;
         private readonly ITurnoRealtimeNotifier _realtimeNotifier;
         private readonly IFabricaTransacciones _transacciones;
 
@@ -35,6 +36,7 @@ namespace ApiAutoLavado.Aplicacion.Services
             IServicioRepository servicios,
             ITurnoRepository turnos,
             IBahiaRepository bahias,
+            IReservaRepository reservas,
             ITurnoRealtimeNotifier realtimeNotifier,
             IFabricaTransacciones transacciones)
         {
@@ -43,6 +45,7 @@ namespace ApiAutoLavado.Aplicacion.Services
             _servicios = servicios;
             _turnos = turnos;
             _bahias = bahias;
+            _reservas = reservas;
             _realtimeNotifier = realtimeNotifier;
             _transacciones = transacciones;
         }
@@ -452,10 +455,72 @@ namespace ApiAutoLavado.Aplicacion.Services
 
             if (turno == null)
             {
+                // RF-CL-02: si el administrador aún no ha convertido la reserva en
+                // turno, el cliente igualmente puede consultar el estado de su reserva
+                // por placa (o por el código RES-XXXX).
+                var reserva = _reservas.ObtenerPorCodigo(idLimpio)
+                    ?? _reservas.ObtenerPorPlaca(idLimpio)
+                            .Where(r => !string.Equals(r.Estado, "CANCELADA", StringComparison.OrdinalIgnoreCase))
+                            .OrderByDescending(r => r.FechaReserva)
+                            .ThenByDescending(r => r.HoraReserva)
+                            .FirstOrDefault();
+
+                if (reserva != null)
+                {
+                    return ConstruirTrazabilidadReserva(reserva);
+                }
+
                 throw new NoEncontradoException($"No se encontró ningún registro o turno de lavado activo para '{identificador}'.");
             }
 
             return ConstruirTrazabilidad(turno);
+        }
+
+        /// <summary>
+        /// RF-CL-02: construye la vista de trazabilidad para una reserva que todavía
+        /// no ha sido convertida en turno de patio.
+        /// </summary>
+        private TrazabilidadTurnoResponse ConstruirTrazabilidadReserva(Reserva reserva)
+        {
+            var vehiculo = _vehiculos.ObtenerPorPlaca(reserva.Placa);
+            var servicio = _servicios.ObtenerPorId(reserva.IdServicio);
+
+            var tiempoEstimado = reserva.TiempoEstimadoMin
+                ?? servicio?.TiempoEstimadoMin
+                ?? 30;
+
+            var mensaje =
+                $"Tu reserva {reserva.CodigoReserva} está {reserva.Estado.ToLowerInvariant()} para el " +
+                $"{reserva.FechaReserva:dd/MM/yyyy} a las {reserva.HoraReserva:HH:mm}. " +
+                "Preséntate con tu placa; el equipo de patio convertirá tu reserva en turno de lavado.";
+
+            return new TrazabilidadTurnoResponse
+            {
+                IdTurno = 0,
+                NumeroTurno = reserva.CodigoReserva,
+                Placa = reserva.Placa,
+                TipoVehiculo = reserva.TipoVehiculo
+                    ?? vehiculo?.TipoVehiculo.ToString().ToUpperInvariant()
+                    ?? "AUTO",
+                TelefonoCliente = reserva.TelefonoCliente ?? vehiculo?.TelefonoCliente ?? string.Empty,
+                NombreServicio = reserva.NombreServicio ?? servicio?.Nombre ?? "LAVADO_GENERAL",
+                TarifaBase = reserva.TarifaBase ?? servicio?.PrecioBase ?? 0m,
+                TiempoEstimadoMin = tiempoEstimado,
+                IdOperario = null,
+                NombreOperario = "Por asignar",
+                FaseActual = "RESERVA",
+                ProgresoPorcentaje = 0,
+                MensajeEstado = mensaje,
+                EstaListoParaRecoger = false,
+                HashConsulta = string.Empty,
+                FechaIngreso = reserva.FechaCreacion,
+                Fases = new List<FaseHitoDto>(),
+                TipoRegistro = "RESERVA",
+                CodigoReserva = reserva.CodigoReserva,
+                FechaReserva = reserva.FechaReserva,
+                HoraReserva = reserva.HoraReserva,
+                EstadoReserva = reserva.Estado
+            };
         }
 
         private TurnoResponse CambiarEstado(long id, string nuevo)

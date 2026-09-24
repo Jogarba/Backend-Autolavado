@@ -27,6 +27,14 @@ namespace ApiAutoLavado.Aplicacion.Dtos
         public string HashConsulta { get; set; } = string.Empty;
         public DateTime FechaIngreso { get; set; }
         public List<FaseHitoDto> Fases { get; set; } = new();
+
+        // RF-CL-02: cuando el vehículo aún no tiene turno de patio pero sí una
+        // reserva vigente, la trazabilidad devuelve los datos de esa reserva.
+        public string TipoRegistro { get; set; } = "TURNO";
+        public string? CodigoReserva { get; set; }
+        public DateOnly? FechaReserva { get; set; }
+        public TimeOnly? HoraReserva { get; set; }
+        public string? EstadoReserva { get; set; }
     }
 
     public class FaseHitoDto

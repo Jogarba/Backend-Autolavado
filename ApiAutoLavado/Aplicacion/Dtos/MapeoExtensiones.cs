@@ -93,7 +93,12 @@ namespace ApiAutoLavado.Aplicacion.Dtos
             MensajeEstado = t.MensajeEstado,
             EstaListoParaRecoger = t.EstaListoParaRecoger,
             FechaIngreso = t.FechaIngreso,
-            Fases = t.Fases
+            Fases = t.Fases,
+            TipoRegistro = t.TipoRegistro,
+            CodigoReserva = t.CodigoReserva,
+            FechaReserva = t.FechaReserva,
+            HoraReserva = t.HoraReserva,
+            EstadoReserva = t.EstadoReserva
         };
 
         private static string? PrimerNombre(string? nombreCompleto)

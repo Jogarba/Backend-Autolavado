@@ -34,5 +34,17 @@ namespace ApiAutoLavado.Aplicacion.Dtos
         public DateTime FechaIngreso { get; set; }
 
         public List<FaseHitoDto> Fases { get; set; } = new();
+
+        // RF-CL-02: identifica si la consulta corresponde a un turno de patio
+        // ("TURNO") o a una reserva aún no convertida ("RESERVA").
+        public string TipoRegistro { get; set; } = "TURNO";
+
+        public string? CodigoReserva { get; set; }
+
+        public DateOnly? FechaReserva { get; set; }
+
+        public TimeOnly? HoraReserva { get; set; }
+
+        public string? EstadoReserva { get; set; }
     }
 }
