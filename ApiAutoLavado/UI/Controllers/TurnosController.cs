@@ -41,7 +41,7 @@ namespace ApiAutoLavado.UI.Controllers
 
         [HttpGet("historial")]
         [Authorize(Roles = "Administrador")]
-        public ActionResult<IEnumerable<TurnoDetalleResponse>> ObtenerHistorial([FromQuery] string? fecha)
+        public ActionResult<IEnumerable<TurnoDetalleResponse>> ObtenerHistorial([FromQuery] string? fecha, [FromQuery] string? placa)
         {
             DateOnly? fechaFiltro = null;
             if (!string.IsNullOrWhiteSpace(fecha) && DateOnly.TryParse(fecha, out var fechaParseada))
@@ -49,7 +49,7 @@ namespace ApiAutoLavado.UI.Controllers
                 fechaFiltro = fechaParseada;
             }
 
-            return Ok(_turnoService.ObtenerHistorial(fechaFiltro));
+            return Ok(_turnoService.ObtenerHistorial(fechaFiltro, placa));
         }
 
         [HttpGet("display")]

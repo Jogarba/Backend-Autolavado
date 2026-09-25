@@ -265,13 +265,19 @@ namespace ApiAutoLavado.Aplicacion.Services
         /// <summary>
         /// Historial completo de turnos (activos y cerrados) para el panel del administrador.
         /// </summary>
-        public IReadOnlyCollection<TurnoDetalleResponse> ObtenerHistorial(DateOnly? fecha = null)
+        public IReadOnlyCollection<TurnoDetalleResponse> ObtenerHistorial(DateOnly? fecha = null, string? placa = null)
         {
             var consulta = _turnos.ObtenerTodos().AsEnumerable();
 
             if (fecha.HasValue)
             {
                 consulta = consulta.Where(t => DateOnly.FromDateTime(t.FechaIngreso) == fecha.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(placa))
+            {
+                var p = placa.Trim().ToUpperInvariant();
+                consulta = consulta.Where(t => t.Placa != null && t.Placa.ToUpperInvariant().Contains(p));
             }
 
             var (servicios, operarios, bahias, vehiculos) = ObtenerLookups();
